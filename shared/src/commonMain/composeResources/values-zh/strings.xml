@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">超分帧</string>
+    <string name="app_short">SFV</string>
+
+    <string name="settings">设置</string>
+
+    <string name="home_sn">首页</string>
+    <string name="process_sn">处理</string>
+    <string name="info_sn">信息</string>
+</resources>

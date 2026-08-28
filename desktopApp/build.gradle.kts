@@ -10,22 +10,19 @@ dependencies {
     implementation(project(":shared"))
 
     implementation(compose.desktop.currentOs)
+    implementation(libs.compose.components.resources)
     implementation(libs.kotlinx.coroutinesSwing)
 
     implementation(libs.compose.uiToolingPreview)
 }
 
-val appVersion = "1.1.2"
+val appVersion = "0.1.0"
 val appName = "SFV"
 val packageName = "io.github.sor2171.superframevision"
 
 compose.desktop {
     application {
         mainClass = "$packageName.MainKt"
-
-        buildTypes.release.proguard {
-            configurationFiles.from(project.file("proguard-rules.pro"))
-        }
 
         nativeDistributions {
             targetFormats(

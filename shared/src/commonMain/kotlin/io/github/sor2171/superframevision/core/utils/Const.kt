@@ -5,11 +5,13 @@ object Const {
 
     val CONFIG_FILE = appDataPath / "config.json"
 
-     val TEMP_DIR = appDataPath / "temp"
-     val DATA_DIR = appDataPath / "data"
+    val TEMP_DIR = appDataPath / "temp"
+    val DATA_DIR = appDataPath / "data"
 
-     val FFMPEG_DIR = DATA_DIR / "ffmpeg"
+    val FFMPEG_DIR = DATA_DIR / "ffmpeg"
 
     const val FULL_APP_NAME = "Super Frame Vision"
     const val SHORT_APP_NAME = "SFV"
+
+    const val SOFTWARE_INFO = "软件完全免费且开源与GitHub"
 }

@@ -1,9 +1,5 @@
-package io.github.sor2171.superframevision.core.entity
+package io.github.sor2171.superframevision.core.utils
 
-import io.github.sor2171.superframevision.core.entity.SettingsRepository.cached
-import io.github.sor2171.superframevision.core.utils.Const
-import io.github.sor2171.superframevision.core.utils.FileUtils
-import io.github.sor2171.superframevision.core.utils.createFileUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

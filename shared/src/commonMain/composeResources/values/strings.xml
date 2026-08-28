@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Super Frame Vision</string>
+    <string name="app_short">SFV</string>
+
+    <string name="settings">Settings</string>
+
+    <string name="home_sn">Home</string>
+    <string name="process_sn">Process</string>
+    <string name="info_sn">Info</string>
+</resources>

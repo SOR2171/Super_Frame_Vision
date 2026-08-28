@@ -19,6 +19,7 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
+            implementation("androidx.compose.material:material-icons-extended:1.6.8")
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
         }
@@ -26,4 +27,8 @@ kotlin {
             implementation(libs.kotlin.test)
         }
     }
+}
+
+compose.resources {
+    publicResClass = true
 }
