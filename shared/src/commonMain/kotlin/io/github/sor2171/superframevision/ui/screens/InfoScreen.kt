@@ -32,7 +32,7 @@ import org.jetbrains.compose.resources.stringResource
 import superframevision.shared.generated.resources.Res
 import superframevision.shared.generated.resources.bilibili
 import superframevision.shared.generated.resources.github
-import superframevision.shared.generated.resources.icon
+import superframevision.shared.generated.resources.kmp
 import superframevision.shared.generated.resources.info_bilibili
 import superframevision.shared.generated.resources.info_donor
 import superframevision.shared.generated.resources.info_github
@@ -145,7 +145,7 @@ fun InfoScreen() {
                                 .fillMaxWidth()
                         ) {
                             Image(
-                                painter = painterResource(Res.drawable.icon),
+                                painter = painterResource(Res.drawable.kmp),
                                 contentDescription = null
                             )
                             Row(

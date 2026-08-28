@@ -1,6 +1,6 @@
 # SFV
 
-<div style="text-align: center;">
+<img src="./shared/src/commonMain/composeResources/drawable/sfv.svg" alt="logo" align="right" width="135">
 
 **Super Frame Vision**
 
@@ -8,11 +8,13 @@
 ![](https://img.shields.io/badge/Windows-10/11-2376bc?style=flat&logo=windows&logoColor=ffffff)
 ![](https://img.shields.io/badge/MacOS-333?style=flat&logo=apple&logoColor=ffffff)
 
+
+
 ![](https://img.shields.io/github/license/sor2171/Super_Frame_Vision.svg)
+![](https://img.shields.io/badge/Kotlin_Multiplatform-7F52FF?style=flat&logo=kotlin&logoColor=white)
 
 zh | [en](./README_en.md)
 
-</div>
 
 ---
 
