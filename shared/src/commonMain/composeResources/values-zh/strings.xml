@@ -7,5 +7,6 @@
 
     <string name="home_sn">首页</string>
     <string name="process_sn">处理</string>
+    <string name="settings_sn">设置</string>
     <string name="info_sn">信息</string>
 </resources>

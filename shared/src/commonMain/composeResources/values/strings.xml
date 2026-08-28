@@ -6,5 +6,6 @@
 
     <string name="home_sn">Home</string>
     <string name="process_sn">Process</string>
+    <string name="settings_sn">Settings</string>
     <string name="info_sn">Info</string>
 </resources>

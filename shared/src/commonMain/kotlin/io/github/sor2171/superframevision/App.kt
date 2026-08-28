@@ -28,7 +28,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import io.github.sor2171.superframevision.core.entity.Screens
+import io.github.sor2171.superframevision.core.entity.currentPlatform
 import io.github.sor2171.superframevision.core.utils.SettingsRepository
 import io.github.sor2171.superframevision.ui.component.ScreenButtonBar
 import io.github.sor2171.superframevision.ui.component.ScreenButtonRail
@@ -39,6 +41,7 @@ import io.github.sor2171.superframevision.ui.screens.HomeScreen
 fun App() {
     var currentScreen by rememberSaveable { mutableStateOf(Screens.Home) }
     val settings by SettingsRepository.settings.collectAsState()
+    val platform = currentPlatform()
 
     LaunchedEffect(Unit) {
         SettingsRepository.load()
@@ -73,12 +76,14 @@ fun App() {
     }
 
     val homeScreen = @Composable {
-        HomeScreen()
+        HomeScreen(
+            platform = platform
+        )
     }
 
     MaterialTheme {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val showNavigationRail = maxWidth > maxHeight
+            val showNavigationRail = maxWidth > 600.dp
 
             Row(modifier = Modifier.fillMaxSize()) {
                 if (showNavigationRail) {
