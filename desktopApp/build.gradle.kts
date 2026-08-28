@@ -17,7 +17,7 @@ dependencies {
 }
 
 val appVersion = "0.1.0"
-val appName = "SFV"
+val appName = "Super Frame Vision"
 val packageName = "io.github.sor2171.superframevision"
 
 compose.desktop {
@@ -26,26 +26,35 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(
-                TargetFormat.Msi,    // Windows
-                TargetFormat.Exe,    // Windows
-                TargetFormat.Dmg,    // macOS
-                TargetFormat.Pkg,    // macOS
-                TargetFormat.Deb,    // Linux
-                TargetFormat.Rpm     // Linux
+                // Windows
+                TargetFormat.Msi,
+                TargetFormat.Exe,
+                // macOS
+                TargetFormat.Dmg,
+                // Linux
+                TargetFormat.Deb,
+                TargetFormat.Rpm ,
+                TargetFormat.AppImage
             )
             packageName = appName
             packageVersion = appVersion
 
             windows {
                 iconFile.set(project.file("icons/icon.ico"))
+                menuGroup = appName
+                shortcut = true
+                dirChooser = true
             }
 
             macOS {
                 iconFile.set(project.file("icons/icon.icns"))
+                bundleID = packageName
             }
 
             linux {
                 iconFile.set(project.file("icons/icon.png"))
+                menuGroup = appName
+                shortcut = true
             }
         }
     }
