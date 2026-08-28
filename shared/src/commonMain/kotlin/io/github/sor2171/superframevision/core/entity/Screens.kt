@@ -1,5 +1,6 @@
 package io.github.sor2171.superframevision.core.entity
 
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
@@ -21,22 +22,22 @@ enum class Screens(
     // SN for Screen Name
     Home(
         titleRes = Res.string.home_sn,
-        icon = androidx.compose.material.icons.Icons.Default.Home
+        icon = Icons.Default.Home
     ),
 
     Process(
         titleRes = Res.string.process_sn,
-        icon = androidx.compose.material.icons.Icons.Default.Analytics
+        icon = Icons.Default.Analytics
     ),
 
     Settings(
         titleRes = Res.string.settings_sn,
-        icon = androidx.compose.material.icons.Icons.Default.Settings
+        icon = Icons.Default.Settings
     ),
 
     Info(
         titleRes = Res.string.info_sn,
-        icon = androidx.compose.material.icons.Icons.Default.Info
+        icon = Icons.Default.Info
     )
 }
 

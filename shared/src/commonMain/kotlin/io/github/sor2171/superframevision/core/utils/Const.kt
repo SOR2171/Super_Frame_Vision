@@ -1,7 +1,5 @@
 package io.github.sor2171.superframevision.core.utils
 
-import okio.FileSystem
-
 object Const {
     const val CONFIG_FILE = "config.json"
 
@@ -14,9 +12,14 @@ object Const {
     const val FULL_APP_NAME = "Super Frame Vision"
     const val SHORT_APP_NAME = "SFV"
 
+    const val GITHUB_LINK = "https://github.com/SOR2171/Super_Frame_Vision"
+    const val BILIBILI_LINK = "https://space.bilibili.com/398577276"
+    const val QQ_GROUP_LINK = "https://qm.qq.com/q/GxugmAFtS0"
+
     const val SOFTWARE_INFO = "以下内容硬编码于源码中：\n" +
             "The following content is hard-coded into the source code:" +
-            "|软件完全免费且开源于GitHub平台，如果你是付费下载，则说明你已上当受骗。\n" +
-            "The software is completely free and open-source on GitHub; " +
-            "if you paid to download it, you have been scammed."
+            "|软件完全免费且开源于GitHub平台，所有付费下载皆为盗版。\n" +
+            "The software is completely free and open-source on GitHub; all paid downloads are pirated." +
+            "|如果这个软件帮到了你，可以用以下方式表达你的心意。\n" +
+            "If this software has been helpful to you, you can show your appreciation in the following ways."
 }

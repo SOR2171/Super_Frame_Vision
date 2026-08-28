@@ -5,7 +5,14 @@
     <string name="settings">Settings</string>
 
     <string name="home_sn">Home</string>
+
     <string name="process_sn">Process</string>
+
     <string name="settings_sn">Settings</string>
+
     <string name="info_sn">Info</string>
+    <string name="info_github">give me a star on GitHub.</string>
+    <string name="info_bilibili">subscribe to my BiliBili channel.</string>
+    <string name="info_qq_group">join my QQ group.</string>
+    <string name="info_donor">Thank you for supporting me.</string>
 </resources>

@@ -27,16 +27,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import io.github.sor2171.superframevision.core.entity.Screens
 import io.github.sor2171.superframevision.core.entity.currentPlatform
 import io.github.sor2171.superframevision.core.entity.title
 import io.github.sor2171.superframevision.core.utils.SettingsRepository
 import io.github.sor2171.superframevision.ui.screens.HomeScreen
+import io.github.sor2171.superframevision.ui.screens.InfoScreen
 
 @Composable
 @Preview
 fun App() {
-    var currentScreen by rememberSaveable { mutableStateOf(Screens.Home) }
+    var currentScreen by rememberSaveable { mutableStateOf(Screens.Info) }
     val settings by SettingsRepository.settings.collectAsState()
     val platform = currentPlatform()
 
@@ -60,7 +62,10 @@ fun App() {
                         NavigationRailItem(
                             selected = currentScreen == screen,
                             onClick = { currentScreen = screen },
-                            icon = { Icon(screen.icon, contentDescription = screen.title()) },
+                            icon = { Icon(
+                                imageVector = screen.icon,
+                                contentDescription = screen.title()
+                            ) },
                             label = { Text(screen.title()) }
                         )
                     }
@@ -68,7 +73,9 @@ fun App() {
             }
 
             Surface(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
             ) {
                 AnimatedContent(
                     targetState = currentScreen,
@@ -88,9 +95,7 @@ fun App() {
                             platform = platform
                         )
 
-                        Screens.Info -> HomeScreen(
-                            platform = platform
-                        )
+                        Screens.Info -> InfoScreen()
                     }
                 }
             }
