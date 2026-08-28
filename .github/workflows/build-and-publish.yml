@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v1.2.3"
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+
+      matrix:
+        include:
+          - os: macos-latest
+            target: macos
+
+          - os: windows-latest
+            target: windows
+
+          - os: ubuntu-latest
+            target: linux
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: gradle
+
+      - name: Make Gradle executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./gradlew
+
+      # macOS
+      - name: Build macOS
+        if: matrix.target == 'macos'
+        run: ./gradlew composeApp:packageDmg --no-daemon
+
+      # Windows
+      - name: Build Windows
+        if: matrix.target == 'windows'
+        run: |
+          ./gradlew composeApp:packageExe composeApp:packageMsi --no-daemon
+
+      # Linux
+      - name: Build Linux
+        if: matrix.target == 'linux'
+        run: |
+          ./gradlew composeApp:packageDeb composeApp:packageRpm composeApp:packageAppImage --no-daemon
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.target }}-artifacts
+          path: |
+            composeApp/build/compose/binaries/**
+            composeApp/build/distributions/**
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.msi
+            artifacts/**/*.exe
+            artifacts/**/*.deb
+            artifacts/**/*.rpm
+            artifacts/**/*.AppImage
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
