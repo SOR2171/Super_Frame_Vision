@@ -1,4 +1,5 @@
 plugins {
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.4.10"
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
@@ -6,10 +7,12 @@ plugins {
 
 kotlin {
     jvm()
-    
-    
+
     sourceSets {
         commonMain.dependencies {
+            implementation("com.squareup.okio:okio:3.18.1")
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.coroutines.core)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)

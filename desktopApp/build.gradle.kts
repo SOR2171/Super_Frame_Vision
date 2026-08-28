@@ -15,14 +15,41 @@ dependencies {
     implementation(libs.compose.uiToolingPreview)
 }
 
+val appVersion = "1.1.2"
+val appName = "SFV"
+val packageName = "io.github.sor2171.superframevision"
+
 compose.desktop {
     application {
-        mainClass = "io.github.sor2171.superframevision.MainKt"
+        mainClass = "$packageName.MainKt"
+
+        buildTypes.release.proguard {
+            configurationFiles.from(project.file("proguard-rules.pro"))
+        }
 
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "io.github.sor2171.superframevision"
-            packageVersion = "1.0.0"
+            targetFormats(
+                TargetFormat.Msi,    // Windows
+                TargetFormat.Exe,    // Windows
+                TargetFormat.Dmg,    // macOS
+                TargetFormat.Pkg,    // macOS
+                TargetFormat.Deb,    // Linux
+                TargetFormat.Rpm     // Linux
+            )
+            packageName = appName
+            packageVersion = appVersion
+
+            windows {
+                iconFile.set(project.file("icons/icon.ico"))
+            }
+
+            macOS {
+                iconFile.set(project.file("icons/icon.icns"))
+            }
+
+            linux {
+                iconFile.set(project.file("icons/icon.png"))
+            }
         }
     }
 }
