@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
+import java.io.File
 
 actual fun createFileUtils(): FileUtils = JvmFileUtils
 
@@ -15,7 +16,7 @@ fun resolveAppDataDirectory(): Path {
         ?: throw IllegalStateException("user.home is null"))
         .toPath()
 
-    return when (currentPlatform.os) {
+    return when (currentPlatform().os) {
         Platform.Os.Windows -> {
             val appData = System.getenv("APPDATA")
             val appDataPath = if (appData.isNullOrBlank()) {
@@ -37,9 +38,12 @@ fun resolveAppDataDirectory(): Path {
     }
 }
 
-private object JvmFileUtils: FileUtils {
+private object JvmFileUtils : FileUtils {
     private val fileSystem: FileSystem = FileSystem.SYSTEM
 
+    val installDirPath = File(
+        object {}.javaClass.protectionDomain.codeSource.location.toURI()
+    ).parentFile.absolutePath.toPath()
     override val appDataPath = resolveAppDataDirectory()
 
     override suspend fun read(vararg folders: String): String? {

@@ -1,6 +1,9 @@
 package io.github.sor2171.superframevision.core.utils
 
+import okio.FileSystem
 import okio.Path
+import okio.Path.Companion.toPath
+import java.io.File
 
 /**
  * 平台无关的通用文本文件读写服务。
@@ -13,6 +16,14 @@ import okio.Path
  */
 interface FileUtils {
     val appDataPath: Path
+    val basicTmpDir: Path
+        get() = FileSystem.SYSTEM_TEMPORARY_DIRECTORY
+
+    /** only for Windows */
+    val installDir: Path
+        get() = File(
+            object {}.javaClass.protectionDomain.codeSource.location.toURI()
+        ).parentFile.absolutePath.toPath()
 
     fun resolveTargetPath(vararg folders: String): Path =
         folders.fold(appDataPath) { path, folder -> path / folder }

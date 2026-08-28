@@ -1,7 +1,6 @@
 package io.github.sor2171.superframevision.core.entity
 
-actual val currentPlatform: Platform
-    get() {
+actual fun currentPlatform(): Platform {
         val os = System.getProperty("os.name").lowercase()
         val arch = System.getProperty("os.arch").lowercase()
 

@@ -17,4 +17,4 @@ data class Platform(
     }
 }
 
-expect val currentPlatform: Platform
+expect fun currentPlatform(): Platform
