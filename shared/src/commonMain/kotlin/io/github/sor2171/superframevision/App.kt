@@ -38,7 +38,7 @@ import io.github.sor2171.superframevision.ui.screens.InfoScreen
 @Composable
 @Preview
 fun App() {
-    var currentScreen by rememberSaveable { mutableStateOf(Screens.Info) }
+    var currentScreen by rememberSaveable { mutableStateOf(Screens.Home) }
     val settings by SettingsRepository.settings.collectAsState()
     val platform = currentPlatform()
 
