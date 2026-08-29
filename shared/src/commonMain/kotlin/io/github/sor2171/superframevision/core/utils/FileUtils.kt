@@ -1,5 +1,7 @@
 package io.github.sor2171.superframevision.core.utils
 
+import io.github.sor2171.superframevision.core.entity.Platform
+import io.github.sor2171.superframevision.core.entity.currentPlatform
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
@@ -19,11 +21,25 @@ interface FileUtils {
     val basicTmpDir: Path
         get() = FileSystem.SYSTEM_TEMPORARY_DIRECTORY
 
-    /** only for Windows */
+    /** only for Windows and AppImage */
     val installDir: Path
-        get() = File(
-            object {}.javaClass.protectionDomain.codeSource.location.toURI()
-        ).parentFile.absolutePath.toPath()
+        get() {
+            val platform = currentPlatform()
+            if (platform.os == Platform.Os.Windows) {
+                return File(
+                    object {}.javaClass.protectionDomain.codeSource.location.toURI()
+                ).parentFile.absolutePath.toPath()
+            } else if (platform.os == Platform.Os.Linux) {
+                val appImagePath = System.getenv("APPIMAGE")
+                if (appImagePath != null) {
+                    return File(appImagePath).parentFile.absolutePath.toPath()
+                }
+            }
+            return appDataPath
+        }
+
+    val installTmpDir: Path
+        get() = installDir / Const.TEMP_DIR
 
     fun resolveTargetPath(vararg folders: String): Path =
         folders.fold(appDataPath) { path, folder -> path / folder }
