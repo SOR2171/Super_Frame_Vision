@@ -28,7 +28,7 @@ interface FileUtils {
             if (platform.os == Platform.Os.Windows) {
                 return File(
                     object {}.javaClass.protectionDomain.codeSource.location.toURI()
-                ).parentFile.absolutePath.toPath()
+                ).parentFile.parentFile.absolutePath.toPath()
             } else if (platform.os == Platform.Os.Linux) {
                 val appImagePath = System.getenv("APPIMAGE")
                 if (appImagePath != null) {
