@@ -83,16 +83,13 @@ fun App() {
                 ) { screen ->
                     when (screen) {
                         Screens.Home -> HomeScreen(
-                            platform = platform
+                            platform = platform,
+                            settings = settings,
                         )
 
-                        Screens.Process -> HomeScreen(
-                            platform = platform
-                        )
+                        Screens.Process -> InfoScreen()
 
-                        Screens.Settings -> HomeScreen(
-                            platform = platform
-                        )
+                        Screens.Settings -> InfoScreen()
 
                         Screens.Info -> InfoScreen()
                     }

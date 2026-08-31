@@ -10,6 +10,10 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            // https://github.com/SOR2171/FFmpeg-Kit_KMP
+//            implementation("io.github.sor2171:ffmpeg-kit-kmp:0.11.1")
+            implementation(files("./libs/ffmpeg-kit-kmp-jvm.jar"))
+
             implementation("com.squareup.okio:okio:3.18.1")
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
@@ -22,6 +26,8 @@ kotlin {
             implementation("androidx.compose.material:material-icons-extended:1.6.8")
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(libs.jna)
+            implementation(libs.slf4j.simple)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

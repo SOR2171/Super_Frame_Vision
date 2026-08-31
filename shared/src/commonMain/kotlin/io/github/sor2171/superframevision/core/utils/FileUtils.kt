@@ -5,6 +5,8 @@ import io.github.sor2171.superframevision.core.entity.currentPlatform
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
+import okio.buffer
+import okio.openZip
 import java.io.File
 
 /**
@@ -55,6 +57,36 @@ interface FileUtils {
     /** 删除文件；文件不存在时静默成功。 */
     suspend fun delete(vararg folders: String)
     suspend fun delete(targetPath: Path)
+
+    fun unzip(zipFile: Path, targetPath: Path) {
+        val zipFs = FileSystem.SYSTEM.openZip(zipFile)
+
+        fun extract(dir: Path) {
+            for (entry in zipFs.list(dir)) {
+                val relativePath = entry.toString().removePrefix("/")
+                val destination = targetPath.resolve(relativePath)
+
+                val metadata = zipFs.metadata(entry)
+                if (metadata.isDirectory) {
+                    FileSystem.SYSTEM.createDirectories(destination)
+                    extract(entry)
+                } else {
+                    metadata.symlinkTarget?.let {
+                        // 如果存在软链接处理
+                        continue
+                    }
+                    destination.parent?.let { FileSystem.SYSTEM.createDirectories(it) }
+                    zipFs.source(entry).use { source ->
+                        FileSystem.SYSTEM.sink(destination).buffer().use { sink ->
+                            sink.writeAll(source)
+                        }
+                    }
+                }
+            }
+        }
+
+        extract("/".toPath())
+    }
 }
 
 /**
