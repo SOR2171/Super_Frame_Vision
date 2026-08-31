@@ -14,7 +14,11 @@ kotlin {
 //            implementation("io.github.sor2171:ffmpeg-kit-kmp:0.11.1")
             implementation(files("./libs/ffmpeg-kit-kmp-jvm.jar"))
 
+            implementation(libs.onnxruntime)
+            implementation(libs.onnxruntime.gpu)
+
             implementation("com.squareup.okio:okio:3.18.1")
+
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.compose.runtime)

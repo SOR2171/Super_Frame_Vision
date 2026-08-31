@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarDefaults
@@ -38,6 +39,7 @@ import io.github.sor2171.superframevision.ui.screens.InfoScreen
 fun App() {
     var currentScreen by rememberSaveable { mutableStateOf(Screens.Home) }
     val settings by SettingsRepository.settings.collectAsState()
+    val settingsScreenScrollState = rememberScrollState()
     val platform = currentPlatform()
 
     LaunchedEffect(Unit) {
