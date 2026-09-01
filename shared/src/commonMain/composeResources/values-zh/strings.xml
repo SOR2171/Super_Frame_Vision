@@ -7,13 +7,22 @@
 
     <string name="home_sn">首页</string>
 
+    <string name="choose_file_button">选择文件或拖拽至此</string>
+
+    <string name="image_sr">图片超分</string>
+    <string name="video_sr">视频超分</string>
+    <string name="video_fi">视频插帧</string>
+    <string name="video_srfi">视频超分与插帧</string>
+
+    <string name="hint_before_start">请在开始前检查您的设置。</string>
+
     <string name="process_sn">处理</string>
 
     <string name="settings_sn">设置</string>
 
     <string name="info_sn">信息</string>
-    <string name="info_github">在 GitHub 上给我一个 star。</string>
-    <string name="info_bilibili">关注我的B站频道。</string>
-    <string name="info_qq_group">加入我的QQ群。</string>
+    <string name="info_github">在 GitHub 上\n给我一个 star</string>
+    <string name="info_bilibili">关注我的B站</string>
+    <string name="info_qq_group">加入我的QQ群</string>
     <string name="info_donor">感谢您的支持！</string>
 </resources>

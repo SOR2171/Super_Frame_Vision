@@ -6,6 +6,15 @@
 
     <string name="home_sn">Home</string>
 
+    <string name="choose_file_button">Choose File or Drag it here</string>
+
+    <string name="image_sr">Image SR</string>
+    <string name="video_sr">Video SR</string>
+    <string name="video_fi">Video FI</string>
+    <string name="video_srfi">Video SR&amp;FI</string>
+
+    <string name="hint_before_start">Please check your settings before you start.</string>
+
     <string name="process_sn">Process</string>
 
     <string name="settings_sn">Settings</string>

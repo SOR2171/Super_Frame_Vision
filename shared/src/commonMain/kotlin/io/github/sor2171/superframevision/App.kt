@@ -4,9 +4,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
@@ -21,16 +23,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.materialkolor.rememberDynamicColorScheme
+import io.github.sor2171.superframevision.core.entity.QueueFile
 import io.github.sor2171.superframevision.core.entity.Screens
 import io.github.sor2171.superframevision.core.entity.currentPlatform
-import io.github.sor2171.superframevision.core.entity.title
+import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.SettingsRepository
+import io.github.sor2171.superframevision.core.utils.label
 import io.github.sor2171.superframevision.ui.screens.HomeScreen
 import io.github.sor2171.superframevision.ui.screens.InfoScreen
 
@@ -38,6 +46,8 @@ import io.github.sor2171.superframevision.ui.screens.InfoScreen
 @Preview
 fun App() {
     var currentScreen by rememberSaveable { mutableStateOf(Screens.Home) }
+    var seedColor by remember { mutableStateOf(Const.colorList[0]) }
+    val queueFileList = remember { mutableStateListOf<QueueFile>() }
     val settings by SettingsRepository.settings.collectAsState()
     val settingsScreenScrollState = rememberScrollState()
     val platform = currentPlatform()
@@ -46,7 +56,14 @@ fun App() {
         SettingsRepository.load()
     }
 
-    MaterialTheme {
+    val colorScheme = rememberDynamicColorScheme(
+        seedColor = seedColor,
+        isDark = isSystemInDarkTheme()
+    )
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+    ) {
         Row(
             modifier = Modifier.fillMaxSize()
         ) {
@@ -55,9 +72,10 @@ fun App() {
             ) {
                 Column(
                     modifier = Modifier.fillMaxHeight(),
-                    verticalArrangement = Arrangement.SpaceEvenly,
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    Spacer(modifier = Modifier.fillMaxHeight(0.1f))
                     Screens.entries.forEach { screen ->
                         NavigationRailItem(
                             selected = currentScreen == screen,
@@ -65,10 +83,10 @@ fun App() {
                             icon = {
                                 Icon(
                                     imageVector = screen.icon,
-                                    contentDescription = screen.title()
+                                    contentDescription = screen.label()
                                 )
                             },
-                            label = { Text(screen.title()) }
+                            label = { Text(screen.label()) }
                         )
                     }
                 }
@@ -87,6 +105,9 @@ fun App() {
                         Screens.Home -> HomeScreen(
                             platform = platform,
                             settings = settings,
+                            addProcessQueue = { queueFileList.add(it) },
+                            removeQueueFile = { queueFileList.remove(it) },
+                            queueFileList = queueFileList,
                         )
 
                         Screens.Process -> InfoScreen()
