@@ -23,6 +23,25 @@ zh | [en](./README_en.md)
 本项目的目的是提供一个多平台的，基于 [`FFmpeg Kit`](https://github.com/akashskypatel/ffmpeg-kit-builders)
 和 [`ONNX Runtime`](https://github.com/microsoft/onnxruntime) 的超分插帧方案。并尽可能地提供更多的选项与好看易读的 UI。
 
+## 关于 AI 模型
+
+我将不会把模型文件发布到 GitHub 上，大家可以在以下链接下载，并放置于
+`./shared/src/commonMain/composeResources/files/models`，不要忘记重命名
+
+[`rife2_26h.onnx`](shared/src/commonMain/composeResources/files/rife2_26h.onnx)
+
+[`real-esrgan_x2.onnx`](shared/src/commonMain/composeResources/files/real-esrgan_x2.onnx)
+
+[`real-esrgan_x4.onnx`](shared/src/commonMain/composeResources/files/real-esrgan_x4.onnx)
+
+[`real-esrgan_x4plus_anime_6B.onnx`](shared/src/commonMain/composeResources/files/real-esrgan_x4plus_anime_6B.onnx)
+
+[RIFE](https://huggingface.co/SOR2171/RIFE-ONNX/tree/main)
+
+[RealESRGAN](https://huggingface.co/SceneWorks/real-esrgan-onnx/tree/main)
+
+[RealESRGAN_x4plus_anime](https://huggingface.co/mhmtaufiq/realesrgan-onnx/tree/main)
+
 ## 如何运行
 
 * [/shared](./shared/src) 用于存放跨 Compose 多平台应用共享的代码。
