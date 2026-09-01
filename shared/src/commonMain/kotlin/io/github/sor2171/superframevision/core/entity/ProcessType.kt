@@ -1,5 +1,6 @@
 package io.github.sor2171.superframevision.core.entity
 
+import io.github.sor2171.superframevision.core.utils.LabelResolvable
 import org.jetbrains.compose.resources.StringResource
 import superframevision.shared.generated.resources.Res
 import superframevision.shared.generated.resources.image_sr
@@ -8,8 +9,8 @@ import superframevision.shared.generated.resources.video_sr
 import superframevision.shared.generated.resources.video_srfi
 
 enum class ProcessType(
-    val label: StringResource,
-) {
+    override val label: StringResource,
+) : LabelResolvable {
     ImageSR(
         label = Res.string.image_sr
     ),

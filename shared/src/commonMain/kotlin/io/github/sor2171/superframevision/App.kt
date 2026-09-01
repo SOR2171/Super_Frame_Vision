@@ -39,7 +39,6 @@ import io.github.sor2171.superframevision.core.entity.Screens
 import io.github.sor2171.superframevision.core.entity.currentPlatform
 import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.SettingsRepository
-import io.github.sor2171.superframevision.core.utils.label
 import io.github.sor2171.superframevision.ui.screens.HomeScreen
 import io.github.sor2171.superframevision.ui.screens.InfoScreen
 import io.github.vinceglb.filekit.dialogs.FileKitMode

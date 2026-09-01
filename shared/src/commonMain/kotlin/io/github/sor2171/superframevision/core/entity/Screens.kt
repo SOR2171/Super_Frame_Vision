@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
+import io.github.sor2171.superframevision.core.utils.LabelResolvable
 import org.jetbrains.compose.resources.StringResource
 import superframevision.shared.generated.resources.Res
 import superframevision.shared.generated.resources.home_sn
@@ -14,9 +15,9 @@ import superframevision.shared.generated.resources.process_sn
 import superframevision.shared.generated.resources.settings_sn
 
 enum class Screens(
-    val label: StringResource,
-    val icon: ImageVector
-) {
+    override val label: StringResource,
+    val icon: ImageVector,
+) : LabelResolvable {
     // SN for Screen Name
     Home(
         label = Res.string.home_sn,
