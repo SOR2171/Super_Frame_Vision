@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.materialkolor.rememberDynamicColorScheme
+import io.github.sor2171.superframevision.core.entity.ProcessType
 import io.github.sor2171.superframevision.core.entity.QueueFile
 import io.github.sor2171.superframevision.core.entity.Screens
 import io.github.sor2171.superframevision.core.entity.currentPlatform
@@ -41,19 +42,38 @@ import io.github.sor2171.superframevision.core.utils.SettingsRepository
 import io.github.sor2171.superframevision.core.utils.label
 import io.github.sor2171.superframevision.ui.screens.HomeScreen
 import io.github.sor2171.superframevision.ui.screens.InfoScreen
+import io.github.vinceglb.filekit.dialogs.FileKitMode
+import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.path
+import okio.Path
+import okio.Path.Companion.toPath
 
 @Composable
 @Preview
 fun App() {
     var currentScreen by rememberSaveable { mutableStateOf(Screens.Home) }
     var seedColor by remember { mutableStateOf(Const.colorList[0]) }
+    var chosenProcessType by rememberSaveable { mutableStateOf(ProcessType.VideoFI) }
+
     val queueFileList = remember { mutableStateListOf<QueueFile>() }
+
     val settings by SettingsRepository.settings.collectAsState()
     val settingsScreenScrollState = rememberScrollState()
     val platform = currentPlatform()
 
     LaunchedEffect(Unit) {
         SettingsRepository.load()
+    }
+
+    val filePickerLauncher = @Composable { callback: (Path) -> Unit ->
+        rememberFilePickerLauncher(
+            mode = FileKitMode.Multiple()
+        ) { files ->
+            files?.forEach { file ->
+                val path = file.path.toPath()
+                callback(path)
+            } ?: return@rememberFilePickerLauncher
+        }
     }
 
     val colorScheme = rememberDynamicColorScheme(
@@ -103,11 +123,12 @@ fun App() {
                 ) { screen ->
                     when (screen) {
                         Screens.Home -> HomeScreen(
-                            platform = platform,
-                            settings = settings,
                             addProcessQueue = { queueFileList.add(it) },
                             removeQueueFile = { queueFileList.remove(it) },
+                            changeProcessType = { chosenProcessType = it},
                             queueFileList = queueFileList,
+                            filePickerLauncher = filePickerLauncher,
+                            chosenProcessType = chosenProcessType
                         )
 
                         Screens.Process -> InfoScreen()

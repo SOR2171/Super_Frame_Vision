@@ -38,7 +38,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -51,15 +50,13 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import io.github.sor2171.superframevision.core.entity.Platform
 import io.github.sor2171.superframevision.core.entity.ProcessType
 import io.github.sor2171.superframevision.core.entity.QueueFile
-import io.github.sor2171.superframevision.core.entity.currentPlatform
-import io.github.sor2171.superframevision.core.utils.SettingsRepository.OverallSettings
 import io.github.sor2171.superframevision.core.utils.label
 import io.github.sor2171.superframevision.ui.component.ScrollColumn
+import io.github.vinceglb.filekit.dialogs.compose.PickerResultLauncher
+import okio.Path
 import okio.Path.Companion.toPath
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -73,13 +70,13 @@ import java.net.URI
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun HomeScreen(
-    platform: Platform,
-    settings: OverallSettings?,
     addProcessQueue: (QueueFile) -> Unit,
     removeQueueFile: (QueueFile) -> Unit,
-    queueFileList: List<QueueFile>
+    changeProcessType: (ProcessType) -> Unit,
+    queueFileList: List<QueueFile>,
+    filePickerLauncher: @Composable ((Path) -> Unit) -> PickerResultLauncher,
+    chosenProcessType: ProcessType,
 ) {
-    var chosenProcessType by rememberSaveable { mutableStateOf(ProcessType.VideoFI) }
     var isDragging by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
@@ -87,6 +84,17 @@ fun HomeScreen(
         targetValue = if (isDragging) 16.dp else 0.dp,
         animationSpec = tween(durationMillis = 500)
     )
+
+    val pathToQueueFile = { path: Path ->
+        QueueFile(
+            path = path,
+            processType = chosenProcessType
+        )
+    }
+
+    val launcher = filePickerLauncher { path ->
+        addProcessQueue(pathToQueueFile(path))
+    }
 
     val dragAndDropTarget = remember {
         object : DragAndDropTarget {
@@ -102,12 +110,8 @@ fun HomeScreen(
                 isDragging = false
                 val files = (event.dragData() as? DragData.FilesList)?.readFiles()
                 val filePaths = files?.map { File(URI(it)).absolutePath.toPath() }
-                filePaths?.forEach {
-                    addProcessQueue(
-                        QueueFile(
-                            path = it
-                        )
-                    )
+                filePaths?.forEach { path ->
+                    addProcessQueue(pathToQueueFile(path))
                 }
                 return false
             }
@@ -216,7 +220,7 @@ fun HomeScreen(
                                 } else {
                                     FilledTonalButton(
                                         modifier = Modifier.padding(8.dp),
-                                        onClick = {},
+                                        onClick = { launcher.launch() },
                                     ) {
                                         Text(text = stringResource(Res.string.choose_file_button))
                                     }
@@ -246,7 +250,7 @@ fun HomeScreen(
                                 index = index,
                                 count = ProcessType.entries.size
                             ),
-                            onClick = { chosenProcessType = processType },
+                            onClick = { changeProcessType(processType) },
                             selected = chosenProcessType == processType,
                             label = { Text(processType.label()) }
                         )
@@ -324,16 +328,4 @@ fun HomeScreen(
             }
         }
     }
-}
-
-@Preview
-@Composable
-private fun HomeScreenPreview() {
-    HomeScreen(
-        platform = currentPlatform(),
-        settings = OverallSettings(),
-        addProcessQueue = {},
-        removeQueueFile = {},
-        queueFileList = listOf(),
-    )
 }
