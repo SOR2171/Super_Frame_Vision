@@ -17,7 +17,9 @@ kotlin {
             implementation(libs.onnxruntime)
             implementation(libs.onnxruntime.gpu)
 
+            implementation("io.github.vinceglb:filekit-core:0.15.0")
             implementation("com.squareup.okio:okio:3.18.1")
+            implementation("com.materialkolor:material-kolor:4.1.1")
 
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
