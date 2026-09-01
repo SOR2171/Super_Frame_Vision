@@ -22,8 +22,8 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-coroutines" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
-onnxruntime = { module = "com.microsoft.onnxruntime:onnxruntime", version = "onnx" }
-onnxruntime-gpu = { module = "com.microsoft.onnxruntime:onnxruntime_gpu", version = "onnx" }
+onnxruntime = { module = "com.microsoft.onnxruntime:onnxruntime", version.ref = "onnx" }
+onnxruntime-gpu = { module = "com.microsoft.onnxruntime:onnxruntime_gpu", version.ref = "onnx" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 
 [plugins]
