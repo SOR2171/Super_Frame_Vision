@@ -1,5 +1,7 @@
 package io.github.sor2171.superframevision.core.utils
 
+import androidx.compose.ui.graphics.Color
+
 object Const {
     const val CONFIG_FILE = "config.json"
 
@@ -22,4 +24,8 @@ object Const {
             "The software is completely free and open-source on GitHub; all paid downloads are pirated." +
             "|如果这个软件帮到了你，可以用以下方式表达你的心意。\n" +
             "If this software has been helpful to you, you can show your appreciation in the following ways."
+
+    val colorList = listOf(
+        Color(227, 187, 181)
+    )
 }
