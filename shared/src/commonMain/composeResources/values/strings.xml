@@ -7,6 +7,8 @@
     <string name="home_sn">Home</string>
 
     <string name="choose_file_button">Choose File or Drag it here</string>
+    <string name="welcome_title">Welcome to SFV:</string>
+    <string name="welcome_body">Now, first choose the processing method, then select the file, and finally click start. Don't forget to check the settings.</string>
 
     <string name="image_sr">Image SR</string>
     <string name="video_sr">Video SR</string>

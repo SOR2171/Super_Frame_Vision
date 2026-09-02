@@ -8,6 +8,8 @@
     <string name="home_sn">首页</string>
 
     <string name="choose_file_button">选择文件或拖拽至此</string>
+    <string name="welcome_title">欢迎使用SFV：</string>
+    <string name="welcome_body">现在，先选择处理方法，再选择文件，最后点击开始，别忘了查看设置。</string>
 
     <string name="image_sr">图片超分</string>
     <string name="video_sr">视频超分</string>
