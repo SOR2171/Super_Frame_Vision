@@ -6,7 +6,6 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
-import io.github.sor2171.superframevision.core.utils.LabelResolvable
 import org.jetbrains.compose.resources.StringResource
 import superframevision.shared.generated.resources.Res
 import superframevision.shared.generated.resources.home_sn

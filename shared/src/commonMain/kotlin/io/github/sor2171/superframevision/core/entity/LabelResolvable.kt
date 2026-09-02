@@ -1,4 +1,4 @@
-package io.github.sor2171.superframevision.core.utils
+package io.github.sor2171.superframevision.core.entity
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.resources.StringResource

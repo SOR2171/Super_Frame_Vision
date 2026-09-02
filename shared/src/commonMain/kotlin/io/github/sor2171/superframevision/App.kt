@@ -75,6 +75,10 @@ fun App() {
         }
     }
 
+    val processStart = {
+
+    }
+
     val colorScheme = rememberDynamicColorScheme(
         seedColor = seedColor,
         isDark = isSystemInDarkTheme()
@@ -125,6 +129,7 @@ fun App() {
                             addProcessQueue = { queueFileList.add(it) },
                             removeQueueFile = { queueFileList.remove(it) },
                             changeProcessType = { chosenProcessType = it},
+                            processStart = processStart,
                             queueFileList = queueFileList,
                             filePickerLauncher = filePickerLauncher,
                             chosenProcessType = chosenProcessType

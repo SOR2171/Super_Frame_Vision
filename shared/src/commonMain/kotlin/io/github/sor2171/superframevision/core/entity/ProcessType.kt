@@ -1,6 +1,5 @@
 package io.github.sor2171.superframevision.core.entity
 
-import io.github.sor2171.superframevision.core.utils.LabelResolvable
 import org.jetbrains.compose.resources.StringResource
 import superframevision.shared.generated.resources.Res
 import superframevision.shared.generated.resources.image_sr

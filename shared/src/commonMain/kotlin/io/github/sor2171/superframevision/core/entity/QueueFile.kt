@@ -4,5 +4,6 @@ import okio.Path
 
 data class QueueFile(
     val path: Path,
-    val processType: ProcessType
+    val processType: ProcessType,
+    val isProcessing: Boolean = false
 )

@@ -53,7 +53,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import io.github.sor2171.superframevision.core.entity.ProcessType
 import io.github.sor2171.superframevision.core.entity.QueueFile
-import io.github.sor2171.superframevision.core.utils.label
 import io.github.sor2171.superframevision.ui.component.ScrollColumn
 import io.github.vinceglb.filekit.dialogs.compose.PickerResultLauncher
 import okio.Path
@@ -64,6 +63,8 @@ import superframevision.shared.generated.resources.Res
 import superframevision.shared.generated.resources.choose_file_button
 import superframevision.shared.generated.resources.hint_before_start
 import superframevision.shared.generated.resources.kmp
+import superframevision.shared.generated.resources.welcome_body
+import superframevision.shared.generated.resources.welcome_title
 import java.io.File
 import java.net.URI
 
@@ -73,6 +74,7 @@ fun HomeScreen(
     addProcessQueue: (QueueFile) -> Unit,
     removeQueueFile: (QueueFile) -> Unit,
     changeProcessType: (ProcessType) -> Unit,
+    processStart: () -> Unit,
     queueFileList: List<QueueFile>,
     filePickerLauncher: @Composable ((Path) -> Unit) -> PickerResultLauncher,
     chosenProcessType: ProcessType,
@@ -151,17 +153,17 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(8.dp)
+                            .padding(12.dp)
                             .align(Alignment.Start),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalAlignment = Alignment.Start
                     ) {
                         Text(
-                            text = "欢迎使用SFV：",
+                            text = stringResource(Res.string.welcome_title),
                             style = MaterialTheme.typography.headlineMedium
                         )
                         Text(
-                            text = "现在，先选择处理方法，再选择文件，最后点击开始，别忘了查看设置。",
+                            text = stringResource(Res.string.welcome_body),
                             style = MaterialTheme.typography.bodyLarge
                         )
                     }
@@ -318,7 +320,7 @@ fun HomeScreen(
 
                 Button(
                     modifier = Modifier.padding(8.dp),
-                    onClick = {},
+                    onClick = processStart,
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
