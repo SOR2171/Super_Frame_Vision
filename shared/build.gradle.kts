@@ -11,7 +11,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // https://github.com/SOR2171/FFmpeg-Kit_KMP
-//            implementation("io.github.sor2171:ffmpeg-kit-kmp:0.11.1")
+//            implementation("io.github.sor2171:ffmpeg-kit-kmp:0.11.2")
             implementation(files("./libs/ffmpeg-kit-kmp-jvm.jar"))
 
             implementation(libs.onnxruntime)
