@@ -14,9 +14,6 @@ kotlin {
 //            implementation("io.github.sor2171:ffmpeg-kit-kmp:0.11.2")
             implementation(files("./libs/ffmpeg-kit-kmp-jvm.jar"))
 
-            implementation(libs.onnxruntime)
-            implementation(libs.onnxruntime.gpu)
-
             implementation("io.github.vinceglb:filekit-core:0.15.0")
             implementation("io.github.vinceglb:filekit-dialogs:0.15.0")
             implementation("io.github.vinceglb:filekit-dialogs-compose:0.15.0")
