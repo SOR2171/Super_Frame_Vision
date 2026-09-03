@@ -28,7 +28,7 @@ expect object FileUtils {
     fun createDirectories(targetPath: Path)
     fun list(targetPath: Path): List<Path>
     fun move(sourcePath: Path, targetPath: Path)
-    fun getOutputStream(targetPath: Path): BufferedSink
+    fun getOutputStream(targetPath: Path, toUse: (BufferedSink) -> Unit)
 
     suspend fun read(vararg folders: String): ByteArray?
     suspend fun write(content: String, vararg folders: String)
@@ -36,7 +36,7 @@ expect object FileUtils {
     fun createDirectories(vararg folders: String)
     fun list(vararg folders: String): List<Path>
     fun move(sourcePath: Path, vararg folders: String)
-    fun getOutputStream(vararg folders: String): BufferedSink
+    fun getOutputStream(vararg folders: String, toUse: (BufferedSink) -> Unit)
 }
 
 fun resolveTargetPath(vararg folders: String): Path =

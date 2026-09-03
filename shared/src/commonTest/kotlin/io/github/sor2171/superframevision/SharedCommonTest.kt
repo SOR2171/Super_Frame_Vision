@@ -1,19 +1,18 @@
 package io.github.sor2171.superframevision
 
 import io.github.sor2171.ffmpegkitkmp.currentPlatform
-import io.github.sor2171.superframevision.core.utils.createFileUtils
+import io.github.sor2171.superframevision.core.utils.FileUtils
 import kotlin.test.Test
 
 class SharedCommonTest {
 
     @Test
     fun fileTest() {
-        val fileUtils = createFileUtils()
-        println(fileUtils.installDir)
+        println(FileUtils.installDir)
     }
 
     @Test
-    fun platformInFFmpeg() {
+    fun showPlatform() {
         println(currentPlatform())
     }
 }

@@ -16,6 +16,11 @@ class MediaProcessTest {
     }
 
     @Test
+    fun detectDimensions() {
+        println(mediaProcessor.detectDimensions())
+    }
+
+    @Test
     fun extractFrames() {
         println(mediaProcessor.extractFrames())
     }

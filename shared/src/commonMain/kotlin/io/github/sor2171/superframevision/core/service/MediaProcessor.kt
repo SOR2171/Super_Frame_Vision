@@ -3,9 +3,6 @@ package io.github.sor2171.superframevision.core.service
 import io.github.sor2171.ffmpegkitkmp.FFmpegRunner
 import io.github.sor2171.superframevision.core.utils.FileUtils
 import okio.Path
-import java.io.BufferedReader
-import java.io.File
-import java.io.InputStreamReader
 
 /**
  * 1. 将输入视频的所有帧提取为 `%06d.jpg`
@@ -13,8 +10,8 @@ import java.io.InputStreamReader
  * 3. 检查视频帧编号是否从 1 开始且连续
  * 4. 使用 concat 文件列表将帧序列压制为 MP4
  *
- * @param sourcePath     输入视频路径
- * @param workDir      存放帧的目录
+ * @param sourcePath  输入视频路径
+ * @param workDir     存放帧的目录
  */
 class MediaProcessor(
     private val sourcePath: Path,
@@ -24,28 +21,64 @@ class MediaProcessor(
         get() = sourcePath.parent!! / "${sourcePath.name}_processed.mp4"
 
     fun detectInputFrameRate(): Double? {
-        return try {
-            val cmd = arrayOf("ffmpeg", "-i", sourcePath.toString())
-            val process = ProcessBuilder(*cmd)
-                .redirectErrorStream(true) // 合并 stderr 到 stdout
-                .start()
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-            var line: String?
-            var fps: Double? = null
-            while (reader.readLine().also { line = it } != null) {
-                val l = line ?: continue
-                // 匹配类似 "Stream #0:0(und): Video: h264, 1920x1080, 24 fps, ..."
-                val match = Regex("""(\d+(\.\d+)?)\s+fps""").find(l)
-                if (match != null) {
-                    fps = match.groupValues[1].toDoubleOrNull()
-                    break
-                }
+        try {
+            val result = FFmpegRunner.ffprobe(
+                "-v error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=r_frame_rate",
+                "-of",
+                "default=noprint_wrappers=1",
+                quotePath(sourcePath)
+            )
+
+            if (result.isNullOrBlank())
+                throw Exception("ffprobe returned empty result")
+
+            val frameRateStr = result.substringAfter("=").trim()
+            val parts = frameRateStr.split('/')
+            val fps = if (parts.size == 2) {
+                parts[0].toDouble() / parts[1].toDouble()
+            } else {
+                frameRateStr.toDouble()
             }
-            process.waitFor()
-            fps
+            return fps
         } catch (e: Exception) {
             println("cannot get frame rate: ${e.message}")
-            null
+            return null
+        }
+    }
+
+    fun detectDimensions(): Pair<Int, Int>? {
+        try {
+            val result = FFmpegRunner.ffprobe(
+                "-v error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=width,height",
+                "-of",
+                "default=noprint_wrappers=1",
+                quotePath(sourcePath)
+            )
+            if (result.isNullOrBlank()) return null
+            val lines = result.lines().filter { it.isNotBlank() }
+            var width: Int? = null
+            var height: Int? = null
+            for (line in lines) {
+                when {
+                    line.startsWith("width=") -> width =
+                        line.substringAfter("=").trim().toIntOrNull()
+
+                    line.startsWith("height=") -> height =
+                        line.substringAfter("=").trim().toIntOrNull()
+                }
+            }
+            return if (width != null && height != null) width to height else null
+        } catch (e: Exception) {
+            println("cannot get dimensions: ${e.message}")
+            return null
         }
     }
 
@@ -53,14 +86,15 @@ class MediaProcessor(
         FileUtils.createDirectories(workDir)
         clearDirectory(workDir)
 
-        val cmd = buildString {
-            append("-i ")
-            append(quotePath(sourcePath))
-            append(" -f image2 -fps_mode passthrough -q:v 2 ")
-            append(quotePath(workDir / "%06d.jpg"))
-        }
-        println("ffmpeg $cmd")
-        return FFmpegRunner.execute(cmd) == 0
+        return !FFmpegRunner.execute(
+            "-hwaccel auto",
+            "-i",
+            quotePath(sourcePath),
+            "-f image2",
+            "-fps_mode passthrough",
+            "-q:v 2",
+            quotePath(workDir / "%06d.jpg")
+        ).isNullOrBlank()
     }
 
     fun renumberToOdd(): Boolean {
@@ -110,49 +144,38 @@ class MediaProcessor(
     }
 
     fun encodeToMp4(
-        frameRate: Double,
-        options: Map<String, String> = defaultEncodingOptions
+        frameRate: Double, options: Map<String, String> = defaultEncodingOptions
     ): Boolean {
         // 生成文件列表（按文件名排序）
         val listFile = workDir / "filelist.txt"
-        val files = FileUtils.list(workDir)
-            .filter { it.name.endsWith(".jpg") }
+        val files = FileUtils.list(workDir).filter { it.name.endsWith(".jpg") }
             .sortedBy { it.name.removeSuffix(".jpg").toIntOrNull() }
 
         // 构建列表内容（绝对路径）
-        val listContent = files.joinToString("\n") { "file '${it.absolutePath()}'" }
+        val listContent = files.joinToString("\n") { "file '$it'" }
 
-        FileUtils.getOutputStream(listFile).use { sink ->
+        FileUtils.getOutputStream(listFile) { sink ->
             sink.writeUtf8(listContent)
             sink.flush()
         }
 
         // 构建 ffmpeg 命令
         val optStr = options.entries.joinToString(" ") { "${it.key} ${it.value}" }
-        val cmd = buildString {
-            append("-framerate $frameRate ")
-            append("-f concat -safe 0 ")
-            append("-i ")
-            append(quotePath(listFile))
-            append(" ")
-            append(optStr)
-            append(" ")
-            append(quotePath(mp4OutputPath))
-        }
-        println("ffmpeg $cmd")
-
-        val success = FFmpegRunner.execute(cmd) == 0
+        val success = FFmpegRunner.execute(
+            "-framerate $frameRate",
+            "-f concat",
+            "-safe 0",
+            "-i",
+            quotePath(listFile),
+            optStr,
+            quotePath(mp4OutputPath)
+        )
         // 清理临时列表文件
         FileUtils.delete(listFile)
-        return success
+        return !success.isNullOrBlank()
     }
 
-    private fun quotePath(path: Path): String =
-        "\"${path.absolutePath()}\""
-
-    private fun Path.absolutePath(): String =
-        // 获取绝对路径字符串（简化版，实际可用 java.io.File 转换）
-        File(this.toString()).absolutePath
+    private fun quotePath(path: Path): String = "\"$path\""
 
     private fun clearDirectory(dir: Path) {
         FileUtils.list(dir).forEach { FileUtils.delete(it) }

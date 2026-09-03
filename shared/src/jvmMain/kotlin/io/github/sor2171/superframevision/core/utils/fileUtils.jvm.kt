@@ -78,17 +78,14 @@ actual object FileUtils {
         withContext(Dispatchers.IO) {
             targetPath.parent?.let { fileSystem.createDirectories(it) }
 
-            // 在同目录下生成临时文件，避免写入中途中断损坏文件
             val tempPath = targetPath.parent
                 ?.let { it / "${targetPath.name}.${System.nanoTime()}.tmp" }
                 ?: throw IllegalArgumentException("targetPath is null")
 
             try {
-                // 写入临时文件
                 fileSystem.write(tempPath) {
                     writeUtf8(content)
                 }
-                // Okio 的 atomicMove 在支持的平台上会进行原子移动；不支持时会自动回退
                 fileSystem.atomicMove(tempPath, targetPath)
             } finally {
                 fileSystem.delete(tempPath, mustExist = false)
@@ -100,9 +97,12 @@ actual object FileUtils {
         fileSystem.delete(targetPath, mustExist = false)
     }
 
-    actual fun getOutputStream(targetPath: Path): BufferedSink {
+    actual fun getOutputStream(
+        targetPath: Path,
+        toUse: (BufferedSink) -> Unit
+    ) {
         targetPath.parent?.let { fileSystem.createDirectories(it) }
-        return fileSystem.sink(targetPath).buffer()
+        fileSystem.sink(targetPath).buffer().use(toUse)
     }
 
     actual fun createDirectories(targetPath: Path) {
@@ -136,6 +136,6 @@ actual object FileUtils {
     actual fun move(sourcePath: Path, vararg folders: String) =
         move(sourcePath, resolveTargetPath(*folders))
 
-    actual fun getOutputStream(vararg folders: String): BufferedSink =
-        getOutputStream(resolveTargetPath(*folders))
+    actual fun getOutputStream(vararg folders: String, toUse: (BufferedSink) -> Unit) =
+        getOutputStream(resolveTargetPath(*folders), toUse)
 }
