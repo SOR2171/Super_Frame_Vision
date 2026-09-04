@@ -1,7 +1,6 @@
 package io.github.sor2171.superframevision.core.utils
 
 import com.sun.jna.Library
-import com.sun.jna.NativeLong
 import com.sun.jna.Pointer
 import com.sun.jna.Structure
 import com.sun.jna.ptr.PointerByReference
@@ -29,7 +28,7 @@ interface NcnnLibrary : Library {
         w: Int,
         h: Int,
         c: Int,
-        elemsize: NativeLong,
+        elemsize: Long,
         elempack: Int,
         allocator: Pointer?
     ): Pointer
@@ -37,7 +36,7 @@ interface NcnnLibrary : Library {
     fun ncnn_mat_get_w(mat: Pointer): Int
     fun ncnn_mat_get_h(mat: Pointer): Int
     fun ncnn_mat_get_c(mat: Pointer): Int
-    fun ncnn_mat_get_elemsize(mat: Pointer): NativeLong
+    fun ncnn_mat_get_elemsize(mat: Pointer): Long
     fun ncnn_mat_get_data(mat: Pointer): Pointer
 
     fun ncnn_mat_fill_float(mat: Pointer, v: Float)
@@ -46,21 +45,10 @@ interface NcnnLibrary : Library {
     fun ncnn_net_load_model_memory(net: Pointer, mem: ByteArray): Long
 
     fun ncnn_extractor_extract(ex: Pointer, name: String, out: PointerByReference): Int
-    fun ncnn_mat_get_cstep(mat: Pointer): NativeLong
-    fun ncnn_mat_get_elempack(mat: Pointer): NativeLong
-
-    fun ncnn_get_gpu_count(): Int
-    fun ncnn_get_gpu_info(device_index: Int): Pointer
+    fun ncnn_mat_get_cstep(mat: Pointer): Long
+    fun ncnn_mat_get_elempack(mat: Pointer): Long
     fun ncnn_net_set_vulkan_device(net: Pointer, device_index: Int)
-    class NcnnGpuInfo : Structure {
-        @JvmField var device_index: Int = 0
-        @JvmField var device_name: String? = null
-        @JvmField var vendor_id: Int = 0
-        @JvmField var device_id: Int = 0
-        constructor() : super()
-        constructor(p: Pointer) : super(p) { useMemory(p); read() }
-        override fun getFieldOrder(): List<String> = listOf(
-            "device_index", "device_name", "vendor_id", "device_id"
-        )
-    }
+    fun ncnn_pipelinecache_destroy(pipeline_cache: Pointer)
+    fun ncnn_pipelinecache_create(device_index: Int): Pointer
+    fun ncnn_option_set_pipeline_cache(opt: Pointer, pipeline_cache: Pointer)
 }

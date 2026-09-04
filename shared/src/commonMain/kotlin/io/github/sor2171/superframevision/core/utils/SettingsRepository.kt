@@ -28,7 +28,6 @@ object SettingsRepository {
         }
     }
 
-    private val fileUtils: FileUtils = createFileUtils()
     private val mutex = Mutex()
 
     private val cached = MutableStateFlow<OverallSettings?>(null)
@@ -55,17 +54,17 @@ object SettingsRepository {
     /** 保存设置：更新内存 [cached] 并写入磁盘。 */
     suspend fun save(value: OverallSettings): Unit = mutex.withLock {
         cached.value = value
-        fileUtils.write(json.encodeToString(value), Const.CONFIG_FILE)
+        FileUtils.write(json.encodeToString(value), Const.CONFIG_FILE)
     }
 
     private suspend fun fetchAndCache(): OverallSettings =
         readFromStorage().also { cached.value = it }
 
     private suspend fun readFromStorage(): OverallSettings {
-        val content = fileUtils.read(Const.CONFIG_FILE)
+        val content = FileUtils.read(Const.CONFIG_FILE)
         return content?.let {
             runCatching {
-                json.decodeFromString<OverallSettings>(it)
+                json.decodeFromString<OverallSettings>(it.contentToString())
             }.getOrNull()
         } ?: OverallSettings.default.also { save(it) }
     }

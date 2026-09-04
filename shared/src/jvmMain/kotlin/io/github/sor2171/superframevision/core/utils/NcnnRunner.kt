@@ -1,7 +1,6 @@
 package io.github.sor2171.superframevision.core.utils
 
 import com.sun.jna.Native
-import com.sun.jna.NativeLong
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.PointerByReference
 import kotlinx.coroutines.Dispatchers
@@ -21,27 +20,16 @@ import javax.imageio.ImageWriteParam
 actual class NcnnRunner(
     private val sourceSize: Pair<Int, Int>,
     private val modelNetPtr: Pointer,
-    private val option: Pointer,
+    private val optionPtr: Pointer,
+    private val extractorPtr: Pointer,
+    private val pipelineCachePtr: Pointer,
     private val times: Int
 ) : AutoCloseable {
 
     private val targetWidth = ceilTo32(sourceSize.first)
     private val targetHeight = ceilTo32(sourceSize.second)
-    private val elemsize = NativeLong(4)
+    private val elemsize = 4L
 
-    actual fun listVulkanDevices(): List<String> {
-        val count = cLib.ncnn_get_gpu_count()
-        if (count <= 0) return emptyList()
-        return (0 until count).map { index ->
-            val infoPtr = cLib.ncnn_get_gpu_info(index)
-            if (infoPtr != Pointer.NULL) {
-                val info = NcnnLibrary.NcnnGpuInfo(infoPtr)
-                "Device $index: ${info.device_name ?: "Unknown"}"
-            } else {
-                "Device $index: Unknown"
-            }
-        }
-    }
 
     actual companion object {
         private val logger = LoggerFactory.getLogger(this.javaClass)
@@ -52,29 +40,48 @@ actual class NcnnRunner(
             instance
         }
 
+        actual fun listVulkanDevices(): List<String> {
+            return VulkanDeviceDetector.detect().map { it.toString() }
+        }
+
         actual suspend fun createSession(
             sourceSize: Pair<Int, Int>,
             modelName: String,
             times: Int,
             deviceIndex: Int,
-        ): NcnnRunner = withContext(Dispatchers.IO) {
+        ): NcnnRunner {
             val modelParam = Res.readBytes("files/$modelName/flownet_opt.param")
             val modelBin = Res.readBytes("files/$modelName/flownet_opt.bin")
             val option = cLib.ncnn_option_create().apply {
                 cLib.ncnn_option_set_num_threads(this, Runtime.getRuntime().availableProcessors())
                 cLib.ncnn_option_set_use_vulkan_compute(this, 1)
             }
+
+            val pipelineCache = cLib.ncnn_pipelinecache_create(deviceIndex)
+            cLib.ncnn_option_set_pipeline_cache(option, pipelineCache)
+
             val modelNetPtr = cLib.ncnn_net_create()
+            cLib.ncnn_net_set_vulkan_device(modelNetPtr, deviceIndex)
             cLib.ncnn_net_set_option(modelNetPtr, option)
             val retParam = cLib.ncnn_net_load_param_memory(modelNetPtr, modelParam)
             require(retParam == 0L) { "load param failed: $retParam" }
             cLib.ncnn_net_load_model_memory(modelNetPtr, modelBin)
-            NcnnRunner(sourceSize, modelNetPtr, option, times)
+
+            val extractor = cLib.ncnn_extractor_create(modelNetPtr)
+            cLib.ncnn_extractor_set_option(extractor, option)
+
+            return NcnnRunner(
+                sourceSize,
+                modelNetPtr,
+                option,
+                extractor,
+                pipelineCache,
+                times
+            )
         }
     }
 
-    actual suspend fun processSuperResolution(inputs: List<Path>, outputDir: Path) =
-        withContext(Dispatchers.IO) {
+    actual suspend fun processSuperResolution(inputs: List<Path>, outputDir: Path) {
             FileUtils.createDirectories(outputDir)
             inputs.forEach { path ->
                 val savePath = outputDir / "${path.name.substringBefore(".")}.jpg"
@@ -85,7 +92,7 @@ actual class NcnnRunner(
     actual suspend fun processFrameInterpolation(
         pairs: List<Pair<Path, Path>>,
         outputDir: Path
-    ) = withContext(Dispatchers.IO) {
+    ) {
         FileUtils.createDirectories(outputDir)
         pairs.forEach { (img0, img1) ->
             val idx = img0.name.substringBefore(".").toInt()
@@ -100,7 +107,7 @@ actual class NcnnRunner(
         val padded = resizeWithPadding(image, targetWidth, targetHeight)
         val inputMat = createFloatMatFromImage(padded)
         val ex = cLib.ncnn_extractor_create(modelNetPtr)
-        cLib.ncnn_extractor_set_option(ex, option)
+        cLib.ncnn_extractor_set_option(ex, optionPtr)
 
         var outputMat: Pointer? = null
         try {
@@ -141,7 +148,7 @@ actual class NcnnRunner(
         val inputMat = create6ChannelMat(padded0, padded1, targetWidth, targetHeight)
         val tsMat = createScalarMat(timestep)
         val ex = cLib.ncnn_extractor_create(modelNetPtr)
-        cLib.ncnn_extractor_set_option(ex, option)
+        cLib.ncnn_extractor_set_option(ex, optionPtr)
 
         var outputMat: Pointer? = null
         try {
@@ -172,17 +179,24 @@ actual class NcnnRunner(
 
     override fun close() {
         cLib.ncnn_net_destroy(modelNetPtr)
-        cLib.ncnn_option_destroy(option)
+        cLib.ncnn_option_destroy(optionPtr)
+        cLib.ncnn_extractor_destroy(extractorPtr)
+        cLib.ncnn_pipelinecache_destroy(pipelineCachePtr)
     }
 
-    private fun create6ChannelMat(img0: BufferedImage, img1: BufferedImage, w: Int, h: Int): Pointer {
+    private fun create6ChannelMat(
+        img0: BufferedImage,
+        img1: BufferedImage,
+        w: Int,
+        h: Int
+    ): Pointer {
         val mat = cLib.ncnn_mat_create_3d_elem(w, h, 6, elemsize, 1, Pointer.NULL)
         check(mat != Pointer.NULL) { "failed to create 6-channel mat" }
         val dataPtr = cLib.ncnn_mat_get_data(mat)
         check(dataPtr != Pointer.NULL) { "data ptr is null" }
 
-        val cstep = cLib.ncnn_mat_get_cstep(mat).toLong()
-        val matElemsize = cLib.ncnn_mat_get_elemsize(mat).toLong()
+        val cstep = cLib.ncnn_mat_get_cstep(mat)
+        val matElemsize = cLib.ncnn_mat_get_elemsize(mat)
         val planeSize = w * h
         val channelByteOffset = cstep * matElemsize
 
@@ -230,8 +244,8 @@ actual class NcnnRunner(
         val dataPtr = cLib.ncnn_mat_get_data(mat)
         check(dataPtr != Pointer.NULL) { "data ptr is null" }
 
-        val cstep = cLib.ncnn_mat_get_cstep(mat).toLong()
-        val matElemsize = cLib.ncnn_mat_get_elemsize(mat).toLong()
+        val cstep = cLib.ncnn_mat_get_cstep(mat)
+        val matElemsize = cLib.ncnn_mat_get_elemsize(mat)
         val planeSize = w * h
         val channelByteOffset = cstep * matElemsize
 
@@ -269,7 +283,7 @@ actual class NcnnRunner(
 
         val elemsize = cLib.ncnn_mat_get_elemsize(mat).toInt()
         val elempack = cLib.ncnn_mat_get_elempack(mat).toInt()
-        val cstep = cLib.ncnn_mat_get_cstep(mat).toLong() // 单位是“元素”
+        val cstep = cLib.ncnn_mat_get_cstep(mat)
 
         logger.debug("matToImage: w=$width h=$height c=$c elemsize=$elemsize elempack=$elempack cstep=$cstep")
 
@@ -324,11 +338,13 @@ actual class NcnnRunner(
             4 -> {
                 ptr.getFloat(0)
             }
+
             2 -> {
                 // 读取 half (unsigned short) 并转换
                 val bits = ptr.getShort(0).toInt() and 0xFFFF
                 halfToFloat(bits)
             }
+
             else -> {
                 error("Unsupported elemsize: $elemsize")
             }
@@ -336,19 +352,27 @@ actual class NcnnRunner(
     }
 
     // 读取一个完整通道的数据（平面存储）
-    private fun readChannel(dataPtr: Pointer, channel: Int, channelByteOffset: Long, length: Int, elemsize: Int): FloatArray {
+    private fun readChannel(
+        dataPtr: Pointer,
+        channel: Int,
+        channelByteOffset: Long,
+        length: Int,
+        elemsize: Int
+    ): FloatArray {
         val startPtr = dataPtr.share(channel * channelByteOffset)
         val result = FloatArray(length)
         when (elemsize) {
             4 -> {
                 startPtr.read(0, result, 0, length)
             }
+
             2 -> {
                 val shorts = startPtr.getShortArray(0, length)
                 for (i in 0 until length) {
                     result[i] = halfToFloat(shorts[i].toInt() and 0xFFFF)
                 }
             }
+
             else -> {
                 error("Unsupported elemsize: $elemsize")
             }
@@ -373,6 +397,7 @@ actual class NcnnRunner(
                     if (sign != 0) -value else value
                 }
             }
+
             31 -> {
                 if (mantissa == 0) {
                     if (sign == 0) Float.POSITIVE_INFINITY else Float.NEGATIVE_INFINITY
@@ -380,6 +405,7 @@ actual class NcnnRunner(
                     Float.NaN
                 }
             }
+
             else -> {
                 val bits = sign or ((exponent - 15 + 127) shl 23) or (mantissa shl 13)
                 Float.fromBits(bits)

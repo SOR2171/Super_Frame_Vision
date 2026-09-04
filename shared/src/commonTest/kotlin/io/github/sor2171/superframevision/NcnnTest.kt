@@ -22,6 +22,14 @@ class NcnnTest {
     }
 
     @Test
+    fun listVulkanDevice() {
+        NcnnRunner.listVulkanDevices()
+        val output = StringBuilder()
+        NcnnRunner.listVulkanDevices().forEach { output.append(it).append("\n") }
+        println(output.toString())
+    }
+
+    @Test
     fun runRIFE() = runBlocking {
         NcnnRunner.createSession(
             1920 to 1080,
