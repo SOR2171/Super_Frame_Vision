@@ -53,8 +53,12 @@ actual class NcnnRunner(
             val modelParam = Res.readBytes("files/$modelName/flownet_opt.param")
             val modelBin = Res.readBytes("files/$modelName/flownet_opt.bin")
             val option = cLib.ncnn_option_create().apply {
-                cLib.ncnn_option_set_num_threads(this, Runtime.getRuntime().availableProcessors())
+                cLib.ncnn_option_set_num_threads(this, 1)
                 cLib.ncnn_option_set_use_vulkan_compute(this, 1)
+                cLib.ncnn_option_set_use_fp16_packed(this, 1)
+                cLib.ncnn_option_set_use_fp16_storage(this, 1)
+                cLib.ncnn_option_set_use_fp16_arithmetic(this, 1)
+                cLib.ncnn_option_set_use_packing_layout(this, 1)
             }
 
             val pipelineCache = cLib.ncnn_pipelinecache_create(deviceIndex)
@@ -81,27 +85,7 @@ actual class NcnnRunner(
         }
     }
 
-    actual suspend fun processSuperResolution(inputs: List<Path>, outputDir: Path) {
-            FileUtils.createDirectories(outputDir)
-            inputs.forEach { path ->
-                val savePath = outputDir / "${path.name.substringBefore(".")}.jpg"
-                upscale(path, savePath)
-            }
-        }
-
-    actual suspend fun processFrameInterpolation(
-        pairs: List<Pair<Path, Path>>,
-        outputDir: Path
-    ) {
-        FileUtils.createDirectories(outputDir)
-        pairs.forEach { (img0, img1) ->
-            val idx = img0.name.substringBefore(".").toInt()
-            val savePath = outputDir / "${String.format("%06d", idx + 1)}.jpg"
-            inferFrame(img0, img1, savePath, 0.5f)
-        }
-    }
-
-    private suspend fun upscale(inputPath: Path, outputPath: Path) {
+    actual suspend fun upscale(inputPath: Path, outputPath: Path) {
         val image = loadImage(inputPath)
         logger.debug("upscale input: ${image.width}x${image.height}, target: ${targetWidth}x${targetHeight}")
         val padded = resizeWithPadding(image, targetWidth, targetHeight)
@@ -111,7 +95,7 @@ actual class NcnnRunner(
 
         var outputMat: Pointer? = null
         try {
-            check(cLib.ncnn_extractor_input(ex, "input", inputMat) == 0) { "upscale input failed." }
+            check(cLib.ncnn_extractor_input(ex, "data", inputMat) == 0) { "upscale input failed." }
             val outRef = PointerByReference()
             val ret = cLib.ncnn_extractor_extract(ex, "output", outRef)
             check(ret == 0) { "extract failed: $ret" }
@@ -134,12 +118,13 @@ actual class NcnnRunner(
         }
     }
 
-    private suspend fun inferFrame(
+    actual suspend fun inferFrame(
         img0Path: Path,
         img1Path: Path,
         savePath: Path,
         timestep: Float
     ) {
+        logger.info("run $savePath")
         val img0 = loadImage(img0Path)
         val img1 = loadImage(img1Path)
         logger.debug("inferFrame input: ${img0.width}x${img0.height}, ${img1.width}x${img1.height}, target: ${targetWidth}x${targetHeight}")
@@ -178,9 +163,9 @@ actual class NcnnRunner(
     }
 
     override fun close() {
+        cLib.ncnn_extractor_destroy(extractorPtr)
         cLib.ncnn_net_destroy(modelNetPtr)
         cLib.ncnn_option_destroy(optionPtr)
-        cLib.ncnn_extractor_destroy(extractorPtr)
         cLib.ncnn_pipelinecache_destroy(pipelineCachePtr)
     }
 
@@ -190,34 +175,78 @@ actual class NcnnRunner(
         w: Int,
         h: Int
     ): Pointer {
-        val mat = cLib.ncnn_mat_create_3d_elem(w, h, 6, elemsize, 1, Pointer.NULL)
-        check(mat != Pointer.NULL) { "failed to create 6-channel mat" }
+        val mat = cLib.ncnn_mat_create_3d_elem(
+            w,
+            h,
+            6,
+            elemsize,
+            1,
+            Pointer.NULL
+        )
+
+        check(mat != Pointer.NULL) {
+            "failed to create 6-channel mat"
+        }
+
         val dataPtr = cLib.ncnn_mat_get_data(mat)
-        check(dataPtr != Pointer.NULL) { "data ptr is null" }
+
+        check(dataPtr != Pointer.NULL) {
+            "data ptr is null"
+        }
 
         val cstep = cLib.ncnn_mat_get_cstep(mat)
         val matElemsize = cLib.ncnn_mat_get_elemsize(mat)
-        val planeSize = w * h
         val channelByteOffset = cstep * matElemsize
 
-        val floatArray = FloatArray(planeSize * 6)
+        val r0 = dataPtr.share(0L)
+        val g0 = dataPtr.share(1L * channelByteOffset)
+        val b0 = dataPtr.share(2L * channelByteOffset)
+
+        val r1 = dataPtr.share(3L * channelByteOffset)
+        val g1 = dataPtr.share(4L * channelByteOffset)
+        val b1 = dataPtr.share(5L * channelByteOffset)
+
+        var index = 0
+
         for (y in 0 until h) {
             for (x in 0 until w) {
-                val idx = y * w + x
                 val rgb0 = img0.getRGB(x, y)
                 val rgb1 = img1.getRGB(x, y)
-                floatArray[idx] = ((rgb0 shr 16) and 0xFF) / 255.0f
-                floatArray[idx + planeSize] = ((rgb0 shr 8) and 0xFF) / 255.0f
-                floatArray[idx + 2 * planeSize] = (rgb0 and 0xFF) / 255.0f
-                floatArray[idx + 3 * planeSize] = ((rgb1 shr 16) and 0xFF) / 255.0f
-                floatArray[idx + 4 * planeSize] = ((rgb1 shr 8) and 0xFF) / 255.0f
-                floatArray[idx + 5 * planeSize] = (rgb1 and 0xFF) / 255.0f
+
+                r0.setFloat(
+                    index.toLong() * elemsize,
+                    ((rgb0 shr 16) and 0xFF) / 255.0f
+                )
+
+                g0.setFloat(
+                    index.toLong() * elemsize,
+                    ((rgb0 shr 8) and 0xFF) / 255.0f
+                )
+
+                b0.setFloat(
+                    index.toLong() * elemsize,
+                    (rgb0 and 0xFF) / 255.0f
+                )
+
+                r1.setFloat(
+                    index.toLong() * elemsize,
+                    ((rgb1 shr 16) and 0xFF) / 255.0f
+                )
+
+                g1.setFloat(
+                    index.toLong() * elemsize,
+                    ((rgb1 shr 8) and 0xFF) / 255.0f
+                )
+
+                b1.setFloat(
+                    index.toLong() * elemsize,
+                    (rgb1 and 0xFF) / 255.0f
+                )
+
+                index++
             }
         }
 
-        for (c in 0 until 6) {
-            dataPtr.share(c * channelByteOffset).write(0, floatArray, c * planeSize, planeSize)
-        }
         return mat
     }
 

@@ -6,11 +6,10 @@ object Const {
     const val CONFIG_FILE = "config.json"
 
     const val TEMP_DIR = "tmp"
+    const val ORIGIN_FRAME_DIR = "origin"
+    const val UPSCALED_FRAME_DIR = "upscaled"
+    const val INFERRED_FRAME_DIR = "inferred"
     const val DATA_DIR = "data"
-
-    const val FFMPEG_DIR = "ffmpeg"
-    const val NCNN_DIR = "ncnn"
-
     const val FULL_APP_NAME = "Super Frame Vision"
     const val SHORT_APP_NAME = "SFV"
 

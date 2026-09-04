@@ -1,8 +1,14 @@
 package io.github.sor2171.superframevision.core.service
 
 import io.github.sor2171.ffmpegkitkmp.FFmpegRunner
+import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.FileUtils
+import io.github.sor2171.superframevision.core.utils.NcnnRunner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import okio.Path
+import okio.Path.Companion.toPath
 
 /**
  * 1. 将输入视频的所有帧提取为 `%06d.jpg`
@@ -11,14 +17,19 @@ import okio.Path
  * 4. 使用 concat 文件列表将帧序列压制为 MP4
  *
  * @param sourcePath  输入视频路径
- * @param workDir     存放帧的目录
+ * @param tmpDir     工作的缓存目录
  */
 class MediaProcessor(
     private val sourcePath: Path,
-    private val workDir: Path,
+    tmpDir: Path,
 ) {
+    private val videoName = sourcePath.name.substringBefore(".")
     private val mp4OutputPath: Path
-        get() = sourcePath.parent!! / "${sourcePath.name}_processed.mp4"
+        get() = sourcePath.parent!! / "${videoName}_processed.mp4"
+
+    val originFrameDir = tmpDir / Const.ORIGIN_FRAME_DIR
+    val upscaledFrameDir = tmpDir / Const.UPSCALED_FRAME_DIR
+    val inferredFrameDir = tmpDir / Const.INFERRED_FRAME_DIR
 
     fun detectInputFrameRate(): Double? {
         try {
@@ -83,8 +94,8 @@ class MediaProcessor(
     }
 
     fun extractFrames(): Boolean {
-        FileUtils.createDirectories(workDir)
-        clearDirectory(workDir)
+        FileUtils.createDirectories(originFrameDir)
+        clearDirectory(originFrameDir)
 
         return !FFmpegRunner.execute(
             "-hwaccel auto",
@@ -93,12 +104,14 @@ class MediaProcessor(
             "-f image2",
             "-fps_mode passthrough",
             "-q:v 2",
-            quotePath(workDir / "%06d.jpg")
+            quotePath(originFrameDir / "%06d.jpg")
         ).isNullOrBlank()
     }
 
-    fun renumberToOdd(): Boolean {
-        val allJpgs = FileUtils.list(workDir).filter { it.name.endsWith(".jpg") }
+    fun renumberToOdd(sourcePath: MediaProcessor.() -> Path): Boolean {
+        val sourceDir = sourcePath()
+        FileUtils.createDirectories(inferredFrameDir)
+        val allJpgs = FileUtils.list(sourceDir).filter { it.name.endsWith(".jpg") }
         if (allJpgs.isEmpty()) return false
 
         // 按数字排序
@@ -106,27 +119,19 @@ class MediaProcessor(
             it.name.removeSuffix(".jpg").toIntOrNull()?.let { num -> num to it }
         }.sortedBy { it.first }
 
-        val tempDir = workDir / "temp_rename"
-        FileUtils.createDirectories(tempDir)
-
         var idx = 1
         for ((_, file) in sorted) {
             val newNum = 2 * idx - 1
             val newName = String.format("%06d.jpg", newNum)
-            FileUtils.move(file, tempDir / newName)
+            FileUtils.move(file, inferredFrameDir / newName)
             idx++
         }
 
-        allJpgs.forEach { FileUtils.delete(it) }
-        FileUtils.list(tempDir).forEach { file ->
-            FileUtils.move(file, workDir / file.name)
-        }
-        FileUtils.delete(tempDir)
-        return true
+        return checkOddContinuity()
     }
 
     fun checkOddContinuity(): Boolean {
-        val files = FileUtils.list(workDir).filter { it.name.endsWith(".jpg") }
+        val files = FileUtils.list(inferredFrameDir).filter { it.name.endsWith(".jpg") }
         if (files.isEmpty()) return false
 
         val nums = files.mapNotNull {
@@ -143,35 +148,97 @@ class MediaProcessor(
         return true
     }
 
-    fun encodeToMp4(
-        frameRate: Double, options: Map<String, String> = defaultEncodingOptions
-    ): Boolean {
-        // 生成文件列表（按文件名排序）
-        val listFile = workDir / "filelist.txt"
-        val files = FileUtils.list(workDir).filter { it.name.endsWith(".jpg") }
-            .sortedBy { it.name.removeSuffix(".jpg").toIntOrNull() }
+    suspend fun processSuperResolution(modelName: String, thread: Int = 4) {
+        require(thread > 0) { "thread must be greater than 0" }
 
-        // 构建列表内容（绝对路径）
-        val listContent = files.joinToString("\n") { "file '$it'" }
+        FileUtils.createDirectories(upscaledFrameDir)
 
-        FileUtils.getOutputStream(listFile) { sink ->
-            sink.writeUtf8(listContent)
-            sink.flush()
+        val inputs = FileUtils.list(originFrameDir)
+        val workerCount = minOf(thread, inputs.size)
+
+        coroutineScope {
+            repeat(workerCount) { workerId ->
+                launch(Dispatchers.IO) {
+                    val start = inputs.size * workerId / workerCount
+                    val end = inputs.size * (workerId + 1) / workerCount
+
+                    val paths = inputs.subList(start, end)
+
+                    NcnnRunner.createSession(
+                        1920 to 1080,
+                        modelName,
+                    ).use { runner ->
+                        paths.forEach { path ->
+                            val savePath = upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
+                            runner.upscale(path, savePath)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun inferLeftFrames(modelName: String, thread: Int = 4) {
+        require(thread > 0) { "thread must be greater than 0" }
+
+        val inputJpgList = FileUtils.list(inferredFrameDir)
+
+        val inputFrameList = List(inputJpgList.size) { i ->
+            inputJpgList[i] to (inputJpgList.getOrNull(i + 1) ?: inputJpgList.last())
         }
 
-        // 构建 ffmpeg 命令
+        FileUtils.createDirectories(inferredFrameDir)
+
+        val workerCount = minOf(thread, inputFrameList.size)
+
+        coroutineScope {
+            repeat(workerCount) { workerId ->
+                launch(Dispatchers.IO) {
+                    val start = inputFrameList.size * workerId / workerCount
+                    val end = inputFrameList.size * (workerId + 1) / workerCount
+
+                    val pairs = inputFrameList.subList(start, end)
+
+                    NcnnRunner.createSession(
+                        1920 to 1080,
+                        modelName,
+                    ).use { runner ->
+
+                        pairs.forEach { (img0, img1) ->
+                            val idx = img0.name
+                                .substringBefore(".")
+                                .toInt()
+
+                            val savePath =
+                                inferredFrameDir / "${String.format("%06d", idx + 1)}.jpg"
+
+                            runner.inferFrame(
+                                img0,
+                                img1,
+                                savePath,
+                                0.5f
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun encodeToMp4(
+        frameRate: Double,
+        options: Map<String, String> = defaultEncodingOptions,
+        finishDirLambda: MediaProcessor.() -> Path
+    ): Boolean {
+        val finishDir = finishDirLambda(this)
         val optStr = options.entries.joinToString(" ") { "${it.key} ${it.value}" }
         val success = FFmpegRunner.execute(
             "-framerate $frameRate",
-            "-f concat",
-            "-safe 0",
             "-i",
-            quotePath(listFile),
+            quotePath(finishDir / "%06d.jpg"),
             optStr,
             quotePath(mp4OutputPath)
         )
-        // 清理临时列表文件
-        FileUtils.delete(listFile)
         return !success.isNullOrBlank()
     }
 
@@ -184,8 +251,8 @@ class MediaProcessor(
     companion object {
         /** 默认编码参数（高质量、兼容性好） */
         val defaultEncodingOptions = mapOf(
-            "-c:v" to "libx264",
-            "-crf" to "23",
+            "-c:v" to "libx265",
+            "-crf" to "14",
             "-pix_fmt" to "yuv420p",
             "-preset" to "medium"
         )

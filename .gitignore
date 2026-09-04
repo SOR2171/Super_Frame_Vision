@@ -18,4 +18,6 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
 **/libs
-**/models
+
+**/files
+**/natives

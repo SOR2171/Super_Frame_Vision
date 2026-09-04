@@ -110,11 +110,12 @@ actual object FileUtils {
     }
 
     actual fun list(targetPath: Path): List<Path> {
+        FileUtils.createDirectories(targetPath)
         return fileSystem.list(targetPath)
     }
 
     actual fun move(sourcePath: Path, targetPath: Path) {
-        fileSystem.createDirectories(targetPath)
+        fileSystem.createDirectories(targetPath.parent!!)
         fileSystem.atomicMove(sourcePath, targetPath)
     }
 

@@ -10,6 +10,10 @@ interface NcnnLibrary : Library {
     fun ncnn_option_destroy(opt: Pointer)
     fun ncnn_option_set_num_threads(opt: Pointer, numThreads: Int)
     fun ncnn_option_set_use_vulkan_compute(opt: Pointer, enable: Int)
+    fun ncnn_option_set_use_fp16_packed(pointer: Pointer, enable: Int)
+    fun ncnn_option_set_use_fp16_storage(pointer: Pointer, enable: Int)
+    fun ncnn_option_set_use_fp16_arithmetic(pointer: Pointer, enable: Int)
+    fun ncnn_option_set_use_packing_layout(pointer: Pointer, enable: Int)
 
     fun ncnn_net_create(): Pointer
     fun ncnn_net_destroy(net: Pointer)

@@ -1,6 +1,7 @@
 package io.github.sor2171.superframevision
 
 import io.github.sor2171.superframevision.core.service.MediaProcessor
+import kotlinx.coroutines.runBlocking
 import okio.Path.Companion.toPath
 import kotlin.test.Test
 
@@ -21,7 +22,11 @@ class MediaProcessTest {
     }
 
     @Test
-    fun extractFrames() {
-        println(mediaProcessor.extractFrames())
+    fun inferFramesForVideo(): Unit = runBlocking {
+        val originalFrameRate = mediaProcessor.detectInputFrameRate()!!
+        check(mediaProcessor.extractFrames()) { "extractFrames" }
+        check(mediaProcessor.renumberToOdd { this.originFrameDir }) { "renumberToOdd" }
+        mediaProcessor.inferLeftFrames("rife-v4.26h", 8)
+        mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
     }
 }

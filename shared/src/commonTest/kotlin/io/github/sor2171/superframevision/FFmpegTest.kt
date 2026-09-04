@@ -7,6 +7,6 @@ class FFmpegTest {
 
     @Test
     fun FFmpegVersion() {
-        println(FFmpegRunner.execute("-version"))
+        println(FFmpegRunner.execute("-encoders"))
     }
 }

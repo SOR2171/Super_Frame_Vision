@@ -14,6 +14,11 @@ expect class NcnnRunner : AutoCloseable {
         ): NcnnRunner
     }
 
-    suspend fun processSuperResolution(inputs: List<Path>, outputDir: Path)
-    suspend fun processFrameInterpolation(pairs: List<Pair<Path, Path>>, outputDir: Path)
+    suspend fun upscale(inputPath: Path, outputPath: Path)
+    suspend fun inferFrame(
+        img0Path: Path,
+        img1Path: Path,
+        savePath: Path,
+        timestep: Float = 0.5f
+    )
 }

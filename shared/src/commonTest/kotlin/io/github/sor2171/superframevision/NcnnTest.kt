@@ -11,10 +11,6 @@ class NcnnTest {
     val inputPNGList = FileUtils.list(inputFolder)
     val outputFolder = "D:/Code/Python/ModelTest/data/output_frames".toPath()
 
-    val inputFrameList = List(inputPNGList.size) { i ->
-        inputPNGList[i] to (inputPNGList.getOrNull(i + 1) ?: inputPNGList.last())
-    }
-
     @Test
     fun listVulkanDevice() {
         NcnnRunner.listVulkanDevices()
@@ -28,7 +24,7 @@ class NcnnTest {
         NcnnRunner.createSession(
             1920 to 1080,
             "rife-v4.26h",
-        ).use { it.processFrameInterpolation(inputFrameList, outputFolder) }
+        ).use { it.inferFrame(inputPNGList[0], inputPNGList[1], outputFolder / "RIFE_ncnn.jpg") }
     }
 
     @Test
@@ -36,6 +32,6 @@ class NcnnTest {
         NcnnRunner.createSession(
             1920 to 1080,
             "realesr-animevideov3-x2",
-        ).use { it.processSuperResolution(inputPNGList, outputFolder) }
+        ).use { it.upscale(inputPNGList[0], outputFolder / "REAL_ncnn.jpg") }
     }
 }
