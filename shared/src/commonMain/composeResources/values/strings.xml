@@ -8,7 +8,7 @@
 
     <string name="choose_file_button">Choose File or Drag it here</string>
     <string name="welcome_title">Welcome to SFV:</string>
-    <string name="welcome_body">Now, first choose the processing method, then select the file, and finally click start. Don't forget to check the settings.</string>
+    <string name="welcome_body">Now, first select the file, then choose the processing method, and finally click start. Don't forget to check the settings.</string>
 
     <string name="image_sr">Image SR</string>
     <string name="video_sr">Video SR</string>
@@ -24,6 +24,6 @@
     <string name="info_sn">Info</string>
     <string name="info_github">give me a star on GitHub.</string>
     <string name="info_bilibili">subscribe to my BiliBili channel.</string>
-    <string name="info_qq_group">join my QQ group.</string>
+    <string name="info_qq_group">join my QQ group.\n(Through not mine now)</string>
     <string name="info_donor">Thank you for supporting me.</string>
 </resources>

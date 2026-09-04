@@ -74,6 +74,7 @@ fun HomeScreen(
     addProcessQueue: (QueueFile) -> Unit,
     removeQueueFile: (QueueFile) -> Unit,
     changeProcessType: (ProcessType) -> Unit,
+    cancelJob: () -> Unit,
     processStart: () -> Unit,
     queueFileList: List<QueueFile>,
     filePickerLauncher: @Composable ((Path) -> Unit) -> PickerResultLauncher,
@@ -100,6 +101,10 @@ fun HomeScreen(
 
     val dragAndDropTarget = remember {
         object : DragAndDropTarget {
+            override fun onStarted(event: DragAndDropEvent) {
+                isDragging = true
+            }
+
             override fun onEntered(event: DragAndDropEvent) {
                 isDragging = true
             }

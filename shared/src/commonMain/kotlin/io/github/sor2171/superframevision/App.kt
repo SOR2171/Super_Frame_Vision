@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -33,32 +34,44 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.materialkolor.rememberDynamicColorScheme
+import io.github.sor2171.superframevision.core.entity.Models
 import io.github.sor2171.superframevision.core.entity.ProcessType
 import io.github.sor2171.superframevision.core.entity.QueueFile
 import io.github.sor2171.superframevision.core.entity.Screens
 import io.github.sor2171.superframevision.core.entity.currentPlatform
+import io.github.sor2171.superframevision.core.service.MediaProcessor
 import io.github.sor2171.superframevision.core.utils.Const
+import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.SettingsRepository
 import io.github.sor2171.superframevision.ui.screens.HomeScreen
 import io.github.sor2171.superframevision.ui.screens.InfoScreen
+import io.github.sor2171.superframevision.ui.screens.ProcessScreen
+import io.github.sor2171.superframevision.ui.screens.SettingsScreen
 import io.github.vinceglb.filekit.dialogs.FileKitMode
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.path
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import okio.Path
 import okio.Path.Companion.toPath
 
 @Composable
 @Preview
 fun App() {
+    val coroutineScope = rememberCoroutineScope()
     var currentScreen by rememberSaveable { mutableStateOf(Screens.Home) }
     var seedColor by remember { mutableStateOf(Const.colorList[0]) }
     var chosenProcessType by rememberSaveable { mutableStateOf(ProcessType.VideoFI) }
+    var isProcessing by rememberSaveable { mutableStateOf(false) }
 
     val queueFileList = remember { mutableStateListOf<QueueFile>() }
 
     val settings by SettingsRepository.settings.collectAsState()
     val settingsScreenScrollState = rememberScrollState()
+
     val platform = currentPlatform()
+    var processJob: Job? = null
 
     LaunchedEffect(Unit) {
         SettingsRepository.load()
@@ -75,8 +88,60 @@ fun App() {
         }
     }
 
-    val processStart = {
+    val processStart: () -> Unit = {
+        processJob = coroutineScope.launch(Dispatchers.IO) {
+            try {
+                isProcessing = true
+                queueFileList.forEach { queueFile ->
+                    queueFile.isProcessing.value = true
+                    MediaProcessor(
+                        queueFile.path,
+                        FileUtils.basicTmpDir
+                    ).use { mediaProcessor ->
+                        when (chosenProcessType) {
+                            ProcessType.ImageSR -> {
+                                mediaProcessor.processSuperResolution(
+                                    Models.REAL_A3_2,
+                                    1,
+                                    queueFile.path,
+                                    queueFile.path.parent!!
+                                )
+                            }
 
+                            ProcessType.VideoSR -> {
+                                check(mediaProcessor.extractFrames()) { "extractFrames" }
+                                mediaProcessor.processSuperResolution(Models.REAL_A3_2, 4)
+                                mediaProcessor.encodeToMp4 { this.upscaledFrameDir }
+                            }
+
+                            ProcessType.VideoFI -> {
+                                val originalFrameRate = mediaProcessor.detectInputFrameRate()!!
+                                check(mediaProcessor.extractFrames()) { "extractFrames" }
+                                check(mediaProcessor.renumberToOdd { this.originFrameDir }) { "renumberToOdd" }
+                                mediaProcessor.inferLeftFrames(Models.RIFE4_26, 8)
+                                mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
+                            }
+
+                            ProcessType.VideoSRFI -> {
+                                val originalFrameRate = mediaProcessor.detectInputFrameRate()!!
+                                check(mediaProcessor.extractFrames()) { "extractFrames" }
+                                mediaProcessor.processSuperResolution(Models.REAL_A3_2, 4)
+                                check(mediaProcessor.renumberToOdd { this.upscaledFrameDir }) { "renumberToOdd" }
+                                mediaProcessor.inferLeftFrames(Models.RIFE4_26, 8)
+                                mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
+
+                            }
+                        }
+                    }
+                    queueFile.isProcessing.value = false
+                }
+            } catch (e: Error) {
+                println(e.message)
+            } finally {
+                queueFileList.removeAt(0)
+                isProcessing = false
+            }
+        }
     }
 
     val colorScheme = rememberDynamicColorScheme(
@@ -128,16 +193,17 @@ fun App() {
                         Screens.Home -> HomeScreen(
                             addProcessQueue = { queueFileList.add(it) },
                             removeQueueFile = { queueFileList.remove(it) },
-                            changeProcessType = { chosenProcessType = it},
+                            changeProcessType = { chosenProcessType = it },
+                            cancelJob = { processJob?.cancel() },
                             processStart = processStart,
                             queueFileList = queueFileList,
                             filePickerLauncher = filePickerLauncher,
                             chosenProcessType = chosenProcessType
                         )
 
-                        Screens.Process -> InfoScreen()
+                        Screens.Process -> ProcessScreen()
 
-                        Screens.Settings -> InfoScreen()
+                        Screens.Settings -> SettingsScreen()
 
                         Screens.Info -> InfoScreen()
                     }

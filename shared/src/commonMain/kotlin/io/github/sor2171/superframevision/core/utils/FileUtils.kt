@@ -2,6 +2,7 @@ package io.github.sor2171.superframevision.core.utils
 
 import io.github.sor2171.superframevision.core.utils.FileUtils.appDataPath
 import okio.BufferedSink
+import okio.FileSystem
 import okio.Path
 
 /**
@@ -41,3 +42,8 @@ expect object FileUtils {
 
 fun resolveTargetPath(vararg folders: String): Path =
     folders.fold(appDataPath) { path, folder -> path / folder }
+
+fun Path.isFile(fileSystem: FileSystem = FileSystem.SYSTEM): Boolean {
+    val metadata = fileSystem.metadataOrNull(this)
+    return metadata?.isRegularFile == true
+}

@@ -39,6 +39,10 @@ compose.desktop {
             packageName = appName
             packageVersion = appVersion
 
+            buildTypes.release.proguard {
+                configurationFiles.from(files("proguard-rules.pro"))
+            }
+
             windows {
                 iconFile.set(project.file("icons/icon.ico"))
                 menuGroup = appName

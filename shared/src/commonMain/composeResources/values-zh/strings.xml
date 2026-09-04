@@ -9,7 +9,7 @@
 
     <string name="choose_file_button">选择文件或拖拽至此</string>
     <string name="welcome_title">欢迎使用SFV：</string>
-    <string name="welcome_body">现在，先选择处理方法，再选择文件，最后点击开始，别忘了查看设置。</string>
+    <string name="welcome_body">现在，先选择文件，再选择处理方法，\n最后点击开始，别忘了查看设置。</string>
 
     <string name="image_sr">图片超分</string>
     <string name="video_sr">视频超分</string>
@@ -25,6 +25,6 @@
     <string name="info_sn">信息</string>
     <string name="info_github">在 GitHub 上\n给我一个 star</string>
     <string name="info_bilibili">关注我的B站</string>
-    <string name="info_qq_group">加入我的QQ群</string>
+    <string name="info_qq_group">加入我的QQ群\n虽然现在不是我的</string>
     <string name="info_donor">感谢您的支持！</string>
 </resources>

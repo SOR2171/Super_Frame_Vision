@@ -4,9 +4,8 @@ import io.github.sor2171.ffmpegkitkmp.FFmpegRunner
 import io.github.sor2171.superframevision.core.entity.Models
 import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.FileUtils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
+import io.github.sor2171.superframevision.core.utils.isFile
+import okio.Closeable
 import okio.Path
 
 /**
@@ -20,8 +19,8 @@ import okio.Path
  */
 class MediaProcessor(
     private val sourcePath: Path,
-    tmpDir: Path,
-) {
+    private val tmpDir: Path,
+) : Closeable {
     private val videoName = sourcePath.name.substringBefore(".")
     private val mp4OutputPath: Path
         get() = sourcePath.parent!! / "${videoName}_processed.mp4"
@@ -29,6 +28,10 @@ class MediaProcessor(
     val originFrameDir = tmpDir / Const.ORIGIN_FRAME_DIR
     val upscaledFrameDir = tmpDir / Const.UPSCALED_FRAME_DIR
     val inferredFrameDir = tmpDir / Const.INFERRED_FRAME_DIR
+
+    override fun close() {
+        FileUtils.delete(tmpDir)
+    }
 
     fun detectInputFrameRate(): Double? {
         try {
@@ -147,32 +150,37 @@ class MediaProcessor(
         return true
     }
 
-    suspend fun processSuperResolution(model: Models, thread: Int = 4) {
+    suspend fun processSuperResolution(
+        model: Models,
+        thread: Int = 4,
+        originFrameDir: Path = this.originFrameDir,
+        upscaledFrameDir: Path = this.upscaledFrameDir
+    ) {
         require(thread > 0) { "thread must be greater than 0" }
 
         FileUtils.createDirectories(upscaledFrameDir)
 
-        val inputs = FileUtils.list(originFrameDir)
+        val inputs =
+            if (originFrameDir.isFile()) listOf(originFrameDir)
+            else FileUtils.list(originFrameDir)
         val workerCount = minOf(thread, inputs.size)
 
-        coroutineScope {
-            repeat(workerCount) { workerId ->
-                launch(Dispatchers.IO) {
-                    val start = inputs.size * workerId / workerCount
-                    val end = inputs.size * (workerId + 1) / workerCount
+        repeat(workerCount) { workerId ->
+            val start = inputs.size * workerId / workerCount
+            val end = inputs.size * (workerId + 1) / workerCount
 
-                    val paths = inputs.subList(start, end)
+            val paths = inputs.subList(start, end)
 
-                    NcnnRunner.createSession(
-                        1920 to 1080,
-                        model,
-                    ).use { runner ->
-                        paths.forEach { path ->
-                            val savePath =
-                                upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
-                            runner.upscale(path, savePath)
-                        }
-                    }
+            NcnnRunner.createSession(
+                1920 to 1080,
+                model,
+            ).use { runner ->
+                paths.forEach { path ->
+                    val savePath =
+                        if (originFrameDir.isFile())
+                            upscaledFrameDir / "${path.name.substringBeforeLast(".")}_SR.jpg"
+                        else upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
+                    runner.upscale(path, savePath)
                 }
             }
         }
@@ -191,35 +199,31 @@ class MediaProcessor(
 
         val workerCount = minOf(thread, inputFrameList.size)
 
-        coroutineScope {
-            repeat(workerCount) { workerId ->
-                launch(Dispatchers.IO) {
-                    val start = inputFrameList.size * workerId / workerCount
-                    val end = inputFrameList.size * (workerId + 1) / workerCount
+        repeat(workerCount) { workerId ->
+            val start = inputFrameList.size * workerId / workerCount
+            val end = inputFrameList.size * (workerId + 1) / workerCount
 
-                    val pairs = inputFrameList.subList(start, end)
+            val pairs = inputFrameList.subList(start, end)
 
-                    NcnnRunner.createSession(
-                        1920 to 1080,
-                        model,
-                    ).use { runner ->
+            NcnnRunner.createSession(
+                1920 to 1080,
+                model,
+            ).use { runner ->
 
-                        pairs.forEach { (img0, img1) ->
-                            val idx = img0.name
-                                .substringBefore(".")
-                                .toInt()
+                pairs.forEach { (img0, img1) ->
+                    val idx = img0.name
+                        .substringBefore(".")
+                        .toInt()
 
-                            val savePath =
-                                inferredFrameDir / "${String.format("%06d", idx + 1)}.jpg"
+                    val savePath =
+                        inferredFrameDir / "${String.format("%06d", idx + 1)}.jpg"
 
-                            runner.inferFrame(
-                                img0,
-                                img1,
-                                savePath,
-                                0.5f
-                            )
-                        }
-                    }
+                    runner.inferFrame(
+                        img0,
+                        img1,
+                        savePath,
+                        0.5f
+                    )
                 }
             }
         }

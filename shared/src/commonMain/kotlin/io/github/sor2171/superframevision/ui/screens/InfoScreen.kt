@@ -32,7 +32,7 @@ import org.jetbrains.compose.resources.stringResource
 import superframevision.shared.generated.resources.Res
 import superframevision.shared.generated.resources.bilibili
 import superframevision.shared.generated.resources.github
-import superframevision.shared.generated.resources.kmp
+import superframevision.shared.generated.resources.donor
 import superframevision.shared.generated.resources.info_bilibili
 import superframevision.shared.generated.resources.info_donor
 import superframevision.shared.generated.resources.info_github
@@ -141,16 +141,15 @@ fun InfoScreen() {
                             .padding(8.dp)
                     ) {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Image(
-                                painter = painterResource(Res.drawable.kmp),
+                                painter = painterResource(Res.drawable.donor),
                                 contentDescription = null
                             )
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
