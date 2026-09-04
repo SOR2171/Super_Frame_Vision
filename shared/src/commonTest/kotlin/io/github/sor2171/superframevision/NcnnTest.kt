@@ -1,15 +1,9 @@
 package io.github.sor2171.superframevision
 
-import com.sun.jna.Native
-import com.sun.jna.NativeLong
-import com.sun.jna.ptr.PointerByReference
 import io.github.sor2171.superframevision.core.utils.FileUtils
-import io.github.sor2171.superframevision.core.utils.NcnnLibrary
-import io.github.sor2171.superframevision.core.utils.NcnnLoader
 import io.github.sor2171.superframevision.core.utils.NcnnRunner
 import kotlinx.coroutines.runBlocking
 import okio.Path.Companion.toPath
-import java.io.File
 import kotlin.test.Test
 
 class NcnnTest {

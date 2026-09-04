@@ -2,10 +2,9 @@ package io.github.sor2171.superframevision.core.utils
 
 import com.sun.jna.Library
 import com.sun.jna.Pointer
-import com.sun.jna.Structure
 import com.sun.jna.ptr.PointerByReference
 
-@Suppress("FunctionName", "PropertyName")
+@Suppress("FunctionName", "LocalVariableName")
 interface NcnnLibrary : Library {
     fun ncnn_option_create(): Pointer
     fun ncnn_option_destroy(opt: Pointer)

@@ -2,7 +2,7 @@ package io.github.sor2171.superframevision.core.utils
 
 import okio.Path
 
-@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
+@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING", "unused")
 expect class NcnnRunner : AutoCloseable {
     companion object {
         fun listVulkanDevices(): List<String>

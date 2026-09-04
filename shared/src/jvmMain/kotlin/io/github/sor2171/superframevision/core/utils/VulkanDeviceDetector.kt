@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory
 
 
 
+@Suppress("unused")
 object VulkanDeviceDetector {
 
     private val logger = LoggerFactory.getLogger(this.javaClass)
