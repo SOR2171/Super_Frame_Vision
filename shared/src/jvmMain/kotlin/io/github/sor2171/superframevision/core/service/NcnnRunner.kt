@@ -1,8 +1,12 @@
-package io.github.sor2171.superframevision.core.utils
+package io.github.sor2171.superframevision.core.service
 
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.PointerByReference
+import io.github.sor2171.superframevision.core.entity.Models
+import io.github.sor2171.superframevision.core.utils.FileUtils
+import io.github.sor2171.superframevision.core.utils.NcnnLoader
+import io.github.sor2171.superframevision.core.utils.VulkanDeviceDetector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.Path
@@ -46,19 +50,26 @@ actual class NcnnRunner(
 
         actual suspend fun createSession(
             sourceSize: Pair<Int, Int>,
-            modelName: String,
+            model: Models,
             times: Int,
             deviceIndex: Int,
         ): NcnnRunner {
-            val modelParam = Res.readBytes("files/$modelName/flownet_opt.param")
-            val modelBin = Res.readBytes("files/$modelName/flownet_opt.bin")
+            val modelParam = Res.readBytes("files/${model.label}/flownet_opt.param")
+            val modelBin = Res.readBytes("files/${model.label}/flownet_opt.bin")
             val option = cLib.ncnn_option_create().apply {
                 cLib.ncnn_option_set_num_threads(this, 1)
                 cLib.ncnn_option_set_use_vulkan_compute(this, 1)
-                cLib.ncnn_option_set_use_fp16_packed(this, 1)
-                cLib.ncnn_option_set_use_fp16_storage(this, 1)
-                cLib.ncnn_option_set_use_fp16_arithmetic(this, 1)
-                cLib.ncnn_option_set_use_packing_layout(this, 1)
+                if (model.is16) {
+                    cLib.ncnn_option_set_use_fp16_packed(this, 1)
+                    cLib.ncnn_option_set_use_fp16_storage(this, 1)
+                    cLib.ncnn_option_set_use_fp16_arithmetic(this, 1)
+                    cLib.ncnn_option_set_use_packing_layout(this, 1)
+                } else {
+                    cLib.ncnn_option_set_use_fp16_packed(this, 0)
+                    cLib.ncnn_option_set_use_fp16_storage(this, 0)
+                    cLib.ncnn_option_set_use_fp16_arithmetic(this, 0)
+                    cLib.ncnn_option_set_use_packing_layout(this, 0)
+                }
             }
 
             val pipelineCache = cLib.ncnn_pipelinecache_create(deviceIndex)
@@ -87,34 +98,51 @@ actual class NcnnRunner(
 
     actual suspend fun upscale(inputPath: Path, outputPath: Path) {
         val image = loadImage(inputPath)
-        logger.debug("upscale input: ${image.width}x${image.height}, target: ${targetWidth}x${targetHeight}")
-        val padded = resizeWithPadding(image, targetWidth, targetHeight)
-        val inputMat = createFloatMatFromImage(padded)
-        val ex = cLib.ncnn_extractor_create(modelNetPtr)
-        cLib.ncnn_extractor_set_option(ex, optionPtr)
+        val w = image.width
+        val h = image.height
+        logger.info("input: {}x{}", w, h)
 
-        var outputMat: Pointer? = null
+        // 对应 ncnn_mat_from_pixels + ncnn_mat_substract_mean_normalize
+        val inMat = createFloatMatFromImage(image)
+
+        var ex: Pointer? = null
+        var outMat: Pointer? = null
+
         try {
-            check(cLib.ncnn_extractor_input(ex, "data", inputMat) == 0) { "upscale input failed." }
+            ex = cLib.ncnn_extractor_create(modelNetPtr)
+            check(ex != Pointer.NULL) { "failed to create extractor" }
+            cLib.ncnn_extractor_set_option(ex, optionPtr)
+
+            check(cLib.ncnn_extractor_input(ex, "data", inMat) == 0) {
+                "failed to set input blob"
+            }
+
             val outRef = PointerByReference()
             val ret = cLib.ncnn_extractor_extract(ex, "output", outRef)
-            check(ret == 0) { "extract failed: $ret" }
-            outputMat = outRef.value
-            check(outputMat != Pointer.NULL) { "output mat is null" }
-            val outW = cLib.ncnn_mat_get_w(outputMat)
-            val outH = cLib.ncnn_mat_get_h(outputMat)
-            val outC = cLib.ncnn_mat_get_c(outputMat)
-            logger.debug("upscale output: ${outW}x${outH}x${outC}")
-            check(outC >= 3) { "expected at least 3 channels" }
-            val fullImage = matToImage(outputMat, outW, outH)
-            val cropped = cropToOriginal(fullImage, sourceSize.first * 2, sourceSize.second * 2)
-            saveImage(cropped, outputPath)
-        } finally {
-            if (outputMat != null) {
-                cLib.ncnn_mat_destroy(outputMat)
+            check(ret == 0 && outRef.value != Pointer.NULL) {
+                "failed to extract output blob: $ret"
             }
-            cLib.ncnn_mat_destroy(inputMat)
-            cLib.ncnn_extractor_destroy(ex)
+
+            outMat = outRef.value
+
+            val outW = cLib.ncnn_mat_get_w(outMat)
+            val outH = cLib.ncnn_mat_get_h(outMat)
+            val outC = cLib.ncnn_mat_get_c(outMat)
+
+            logger.info("output: {}x{} channels={}", outW, outH, outC)
+            require(outC == 3) { "unexpected output channels: $outC (expected 3)" }
+
+            val result = matToImage(outMat, outW, outH)
+            saveImage(result, outputPath)
+
+        } finally {
+            if (outMat != null) {
+                cLib.ncnn_mat_destroy(outMat)
+            }
+            if (ex != null) {
+                cLib.ncnn_extractor_destroy(ex)
+            }
+            cLib.ncnn_mat_destroy(inMat)
         }
     }
 
@@ -169,6 +197,21 @@ actual class NcnnRunner(
         cLib.ncnn_pipelinecache_destroy(pipelineCachePtr)
     }
 
+    private fun cropToOriginal(
+        image: BufferedImage,
+        expectedW: Int,
+        expectedH: Int
+    ): BufferedImage {
+        if (image.width == expectedW && image.height == expectedH) {
+            return image
+        }
+        val offsetX = ((image.width - expectedW) / 2).coerceAtLeast(0)
+        val offsetY = ((image.height - expectedH) / 2).coerceAtLeast(0)
+        val cropW = minOf(expectedW, image.width - offsetX)
+        val cropH = minOf(expectedH, image.height - offsetY)
+        return image.getSubimage(offsetX, offsetY, cropW, cropH)
+    }
+
     private fun create6ChannelMat(
         img0: BufferedImage,
         img1: BufferedImage,
@@ -194,17 +237,13 @@ actual class NcnnRunner(
             "data ptr is null"
         }
 
-        val cstep = cLib.ncnn_mat_get_cstep(mat)
-        val matElemsize = cLib.ncnn_mat_get_elemsize(mat)
-        val channelByteOffset = cstep * matElemsize
+        val r0 = cLib.ncnn_mat_get_channel_data(mat, 0)
+        val g0 = cLib.ncnn_mat_get_channel_data(mat, 1)
+        val b0 = cLib.ncnn_mat_get_channel_data(mat, 2)
 
-        val r0 = dataPtr.share(0L)
-        val g0 = dataPtr.share(1L * channelByteOffset)
-        val b0 = dataPtr.share(2L * channelByteOffset)
-
-        val r1 = dataPtr.share(3L * channelByteOffset)
-        val g1 = dataPtr.share(4L * channelByteOffset)
-        val b1 = dataPtr.share(5L * channelByteOffset)
+        val r1 = cLib.ncnn_mat_get_channel_data(mat, 3)
+        val g1 = cLib.ncnn_mat_get_channel_data(mat, 4)
+        val b1 = cLib.ncnn_mat_get_channel_data(mat, 5)
 
         var index = 0
 
@@ -250,48 +289,40 @@ actual class NcnnRunner(
         return mat
     }
 
-    private fun cropToOriginal(
-        image: BufferedImage,
-        expectedW: Int,
-        expectedH: Int
-    ): BufferedImage {
-        if (image.width == expectedW && image.height == expectedH) {
-            return image
-        }
-        val offsetX = ((image.width - expectedW) / 2).coerceAtLeast(0)
-        val offsetY = ((image.height - expectedH) / 2).coerceAtLeast(0)
-        val cropW = minOf(expectedW, image.width - offsetX)
-        val cropH = minOf(expectedH, image.height - offsetY)
-        return image.getSubimage(offsetX, offsetY, cropW, cropH)
-    }
-
     private fun createFloatMatFromImage(image: BufferedImage): Pointer {
         val w = image.width
         val h = image.height
-        val mat = cLib.ncnn_mat_create_3d_elem(w, h, 3, elemsize, 1, Pointer.NULL)
-        check(mat != Pointer.NULL) { "failed to create mat" }
-        val dataPtr = cLib.ncnn_mat_get_data(mat)
-        check(dataPtr != Pointer.NULL) { "data ptr is null" }
 
-        val cstep = cLib.ncnn_mat_get_cstep(mat)
-        val matElemsize = cLib.ncnn_mat_get_elemsize(mat)
-        val planeSize = w * h
-        val channelByteOffset = cstep * matElemsize
+        val mat = cLib.ncnn_mat_create_3d_elem(
+            w,
+            h,
+            3,
+            elemsize,
+            1,
+            Pointer.NULL
+        )
+        check(mat != Pointer.NULL) { "failed to create input mat" }
 
-        val floatArray = FloatArray(planeSize * 3)
-        for (y in 0 until h) {
-            for (x in 0 until w) {
-                val idx = y * w + x
-                val rgb = image.getRGB(x, y)
-                floatArray[idx] = ((rgb shr 16) and 0xFF) / 255.0f
-                floatArray[idx + planeSize] = ((rgb shr 8) and 0xFF) / 255.0f
-                floatArray[idx + 2 * planeSize] = (rgb and 0xFF) / 255.0f
+        val r = cLib.ncnn_mat_get_channel_data(mat, 0)
+        val g = cLib.ncnn_mat_get_channel_data(mat, 1)
+        val b = cLib.ncnn_mat_get_channel_data(mat, 2)
+
+        val pixels = image.getRGB(0, 0, w, h, null, 0, w)
+
+        var idx = 0
+        (0 until h).forEach { _ ->
+            (0 until w).forEach { _ ->
+                val argb = pixels[idx]
+                val offset = idx.toLong() * elemsize
+
+                r.setFloat(offset, ((argb shr 16) and 0xFF) / 255.0f)
+                g.setFloat(offset, ((argb shr 8) and 0xFF) / 255.0f)
+                b.setFloat(offset, (argb and 0xFF) / 255.0f)
+
+                idx++
             }
         }
 
-        for (c in 0 until 3) {
-            dataPtr.share(c * channelByteOffset).write(0, floatArray, c * planeSize, planeSize)
-        }
         return mat
     }
 
@@ -301,7 +332,6 @@ actual class NcnnRunner(
         return mat
     }
 
-    // 核心修改：支持 elempack 和 fp16 的 matToImage
     private fun matToImage(mat: Pointer, width: Int, height: Int): BufferedImage {
         check(mat != Pointer.NULL) { "mat is null" }
         val c = cLib.ncnn_mat_get_c(mat)

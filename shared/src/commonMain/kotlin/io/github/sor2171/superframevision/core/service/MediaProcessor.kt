@@ -1,14 +1,13 @@
 package io.github.sor2171.superframevision.core.service
 
 import io.github.sor2171.ffmpegkitkmp.FFmpegRunner
+import io.github.sor2171.superframevision.core.entity.Models
 import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.FileUtils
-import io.github.sor2171.superframevision.core.utils.NcnnRunner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import okio.Path
-import okio.Path.Companion.toPath
 
 /**
  * 1. 将输入视频的所有帧提取为 `%06d.jpg`
@@ -148,7 +147,7 @@ class MediaProcessor(
         return true
     }
 
-    suspend fun processSuperResolution(modelName: String, thread: Int = 4) {
+    suspend fun processSuperResolution(model: Models, thread: Int = 4) {
         require(thread > 0) { "thread must be greater than 0" }
 
         FileUtils.createDirectories(upscaledFrameDir)
@@ -166,10 +165,11 @@ class MediaProcessor(
 
                     NcnnRunner.createSession(
                         1920 to 1080,
-                        modelName,
+                        model,
                     ).use { runner ->
                         paths.forEach { path ->
-                            val savePath = upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
+                            val savePath =
+                                upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
                             runner.upscale(path, savePath)
                         }
                     }
@@ -178,7 +178,7 @@ class MediaProcessor(
         }
     }
 
-    suspend fun inferLeftFrames(modelName: String, thread: Int = 4) {
+    suspend fun inferLeftFrames(model: Models, thread: Int = 4) {
         require(thread > 0) { "thread must be greater than 0" }
 
         val inputJpgList = FileUtils.list(inferredFrameDir)
@@ -201,7 +201,7 @@ class MediaProcessor(
 
                     NcnnRunner.createSession(
                         1920 to 1080,
-                        modelName,
+                        model,
                     ).use { runner ->
 
                         pairs.forEach { (img0, img1) ->
@@ -226,7 +226,7 @@ class MediaProcessor(
     }
 
     fun encodeToMp4(
-        frameRate: Double,
+        frameRate: Double = detectInputFrameRate() ?: 30.0,
         options: Map<String, String> = defaultEncodingOptions,
         finishDirLambda: MediaProcessor.() -> Path
     ): Boolean {

@@ -1,4 +1,4 @@
-package io.github.sor2171.superframevision.core.utils
+package io.github.sor2171.superframevision.core.service
 
 import com.sun.jna.Library
 import com.sun.jna.Pointer
@@ -54,4 +54,6 @@ interface NcnnLibrary : Library {
     fun ncnn_pipelinecache_destroy(pipeline_cache: Pointer)
     fun ncnn_pipelinecache_create(device_index: Int): Pointer
     fun ncnn_option_set_pipeline_cache(opt: Pointer, pipeline_cache: Pointer)
+
+    fun ncnn_mat_get_channel_data(mat: Pointer, c: Int): Pointer
 }

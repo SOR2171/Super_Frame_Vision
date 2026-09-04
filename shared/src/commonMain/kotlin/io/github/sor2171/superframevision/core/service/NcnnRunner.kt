@@ -1,5 +1,6 @@
-package io.github.sor2171.superframevision.core.utils
+package io.github.sor2171.superframevision.core.service
 
+import io.github.sor2171.superframevision.core.entity.Models
 import okio.Path
 
 @Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING", "unused")
@@ -8,7 +9,7 @@ expect class NcnnRunner : AutoCloseable {
         fun listVulkanDevices(): List<String>
         suspend fun createSession(
             sourceSize: Pair<Int, Int>,
-            modelName: String,
+            model: Models,
             times: Int = 2,
             deviceIndex: Int = 1
         ): NcnnRunner

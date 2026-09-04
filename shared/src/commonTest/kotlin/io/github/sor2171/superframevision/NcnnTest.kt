@@ -1,7 +1,8 @@
 package io.github.sor2171.superframevision
 
+import io.github.sor2171.superframevision.core.entity.Models
 import io.github.sor2171.superframevision.core.utils.FileUtils
-import io.github.sor2171.superframevision.core.utils.NcnnRunner
+import io.github.sor2171.superframevision.core.service.NcnnRunner
 import kotlinx.coroutines.runBlocking
 import okio.Path.Companion.toPath
 import kotlin.test.Test
@@ -23,7 +24,7 @@ class NcnnTest {
     fun runRIFE() = runBlocking {
         NcnnRunner.createSession(
             1920 to 1080,
-            "rife-v4.26h",
+            Models.RIFE4_26,
         ).use { it.inferFrame(inputPNGList[0], inputPNGList[1], outputFolder / "RIFE_ncnn.jpg") }
     }
 
@@ -31,7 +32,7 @@ class NcnnTest {
     fun runREAL() = runBlocking {
         NcnnRunner.createSession(
             1920 to 1080,
-            "realesr-animevideov3-x2",
+            Models.REAL_A3_2,
         ).use { it.upscale(inputPNGList[0], outputFolder / "REAL_ncnn.jpg") }
     }
 }
