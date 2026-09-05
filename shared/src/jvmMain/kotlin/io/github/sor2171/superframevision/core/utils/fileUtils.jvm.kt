@@ -41,7 +41,7 @@ actual object FileUtils {
             }
         }
 
-    actual val basicTmpDir: Path = FileSystem.SYSTEM_TEMPORARY_DIRECTORY
+    actual val basicTmpDir: Path = FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "SFV"
 
     /** only for Windows and AppImage */
     actual val installDir: Path

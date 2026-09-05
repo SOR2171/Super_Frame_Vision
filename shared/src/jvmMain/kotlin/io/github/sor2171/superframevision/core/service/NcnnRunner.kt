@@ -36,7 +36,7 @@ actual class NcnnRunner(
 
 
     actual companion object {
-        private val logger = LoggerFactory.getLogger(this.javaClass)
+        private val logger = LoggerFactory.getLogger(NcnnRunner::class.java)
 
         private val cLib: NcnnLibrary by lazy {
             val libAbsolutePath = NcnnLoader.loadNcnn()
@@ -100,7 +100,8 @@ actual class NcnnRunner(
         val image = loadImage(inputPath)
         val w = image.width
         val h = image.height
-        logger.info("input: {}x{}", w, h)
+        logger.info("run $outputPath")
+        logger.debug("input: {}x{}", w, h)
 
         // 对应 ncnn_mat_from_pixels + ncnn_mat_substract_mean_normalize
         val inMat = createFloatMatFromImage(image)
@@ -129,7 +130,7 @@ actual class NcnnRunner(
             val outH = cLib.ncnn_mat_get_h(outMat)
             val outC = cLib.ncnn_mat_get_c(outMat)
 
-            logger.info("output: {}x{} channels={}", outW, outH, outC)
+            logger.debug("output: {}x{} channels={}", outW, outH, outC)
             require(outC == 3) { "unexpected output channels: $outC (expected 3)" }
 
             val result = matToImage(outMat, outW, outH)
@@ -190,11 +191,16 @@ actual class NcnnRunner(
         }
     }
 
-    override fun close() {
-        cLib.ncnn_extractor_destroy(extractorPtr)
-        cLib.ncnn_net_destroy(modelNetPtr)
-        cLib.ncnn_option_destroy(optionPtr)
-        cLib.ncnn_pipelinecache_destroy(pipelineCachePtr)
+    actual override fun close() {
+        if (extractorPtr != Pointer.NULL) cLib.ncnn_extractor_destroy(extractorPtr)
+        if (modelNetPtr != Pointer.NULL) cLib.ncnn_net_destroy(modelNetPtr)
+
+        if (pipelineCachePtr != Pointer.NULL) {
+            cLib.ncnn_pipelinecache_clear(pipelineCachePtr)
+            cLib.ncnn_pipelinecache_destroy(pipelineCachePtr)
+        }
+
+        if (optionPtr != Pointer.NULL) cLib.ncnn_option_destroy(optionPtr)
     }
 
     private fun cropToOriginal(

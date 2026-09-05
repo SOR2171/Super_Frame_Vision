@@ -5,7 +5,9 @@ import io.github.sor2171.superframevision.core.entity.Models
 import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.isFile
-import okio.Closeable
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import okio.Path
 
 /**
@@ -20,7 +22,7 @@ import okio.Path
 class MediaProcessor(
     private val sourcePath: Path,
     private val tmpDir: Path,
-) : Closeable {
+) : AutoCloseable {
     private val videoName = sourcePath.name.substringBefore(".")
     private val mp4OutputPath: Path
         get() = sourcePath.parent!! / "${videoName}_processed.mp4"
@@ -30,7 +32,19 @@ class MediaProcessor(
     val inferredFrameDir = tmpDir / Const.INFERRED_FRAME_DIR
 
     override fun close() {
-        FileUtils.delete(tmpDir)
+        try {
+            FileUtils.list(originFrameDir).forEach { file ->
+                FileUtils.delete(file)
+            }
+            FileUtils.list(upscaledFrameDir).forEach { file ->
+                FileUtils.delete(file)
+            }
+            FileUtils.list(inferredFrameDir).forEach { file ->
+                FileUtils.delete(file)
+            }
+        } catch (e: Exception) {
+            println("Error occurred while cleaning directories: ${e.message}")
+        }
     }
 
     fun detectInputFrameRate(): Double? {
@@ -96,6 +110,7 @@ class MediaProcessor(
     }
 
     fun extractFrames(): Boolean {
+        println("提取帧序列至 $originFrameDir")
         FileUtils.createDirectories(originFrameDir)
         clearDirectory(originFrameDir)
 
@@ -106,11 +121,13 @@ class MediaProcessor(
             "-f image2",
             "-fps_mode passthrough",
             "-q:v 2",
-            quotePath(originFrameDir / "%06d.jpg")
+            quotePath(originFrameDir / "%06d.jpg"),
+            "-y"
         ).isNullOrBlank()
     }
 
     fun renumberToOdd(sourcePath: MediaProcessor.() -> Path): Boolean {
+        println("重新编号奇数帧至 $inferredFrameDir")
         val sourceDir = sourcePath()
         FileUtils.createDirectories(inferredFrameDir)
         val allJpgs = FileUtils.list(sourceDir).filter { it.name.endsWith(".jpg") }
@@ -133,6 +150,7 @@ class MediaProcessor(
     }
 
     fun checkOddContinuity(): Boolean {
+        println("检查奇数帧连续性")
         val files = FileUtils.list(inferredFrameDir).filter { it.name.endsWith(".jpg") }
         if (files.isEmpty()) return false
 
@@ -155,38 +173,46 @@ class MediaProcessor(
         thread: Int = 4,
         originFrameDir: Path = this.originFrameDir,
         upscaledFrameDir: Path = this.upscaledFrameDir
-    ) {
-        require(thread > 0) { "thread must be greater than 0" }
+    ) = coroutineScope {
+        println("开始处理超分辨率，输出于$upscaledFrameDir")
+        launch(Dispatchers.Default) {
+            require(thread > 0) { "thread must be greater than 0" }
 
-        FileUtils.createDirectories(upscaledFrameDir)
+            FileUtils.createDirectories(upscaledFrameDir)
 
-        val inputs =
-            if (originFrameDir.isFile()) listOf(originFrameDir)
-            else FileUtils.list(originFrameDir)
-        val workerCount = minOf(thread, inputs.size)
+            val inputs =
+                if (originFrameDir.isFile()) listOf(originFrameDir)
+                else FileUtils.list(originFrameDir)
+            val workerCount = minOf(thread, inputs.size)
 
-        repeat(workerCount) { workerId ->
-            val start = inputs.size * workerId / workerCount
-            val end = inputs.size * (workerId + 1) / workerCount
+            repeat(workerCount) { workerId ->
+                val start = inputs.size * workerId / workerCount
+                val end = inputs.size * (workerId + 1) / workerCount
 
-            val paths = inputs.subList(start, end)
+                val paths = inputs.subList(start, end)
+                val size = detectDimensions() ?: (1920 to 1080)
 
-            NcnnRunner.createSession(
-                1920 to 1080,
-                model,
-            ).use { runner ->
-                paths.forEach { path ->
-                    val savePath =
-                        if (originFrameDir.isFile())
-                            upscaledFrameDir / "${path.name.substringBeforeLast(".")}_SR.jpg"
-                        else upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
-                    runner.upscale(path, savePath)
+                NcnnRunner.createSession(
+                    size,
+                    model.toLarger(size),
+                ).use { runner ->
+                    paths.forEach { path ->
+                        val savePath =
+                            if (originFrameDir.isFile())
+                                upscaledFrameDir / "${path.name.substringBeforeLast(".")}_SR.jpg"
+                            else upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
+                        runner.upscale(path, savePath)
+                    }
                 }
             }
         }
     }
 
-    suspend fun inferLeftFrames(model: Models, thread: Int = 4) {
+    suspend fun inferLeftFrames(
+        model: Models,
+        thread: Int = 4
+    ) = coroutineScope {
+        println("准备执行插帧，线程数：$thread")
         require(thread > 0) { "thread must be greater than 0" }
 
         val inputJpgList = FileUtils.list(inferredFrameDir)
@@ -200,30 +226,32 @@ class MediaProcessor(
         val workerCount = minOf(thread, inputFrameList.size)
 
         repeat(workerCount) { workerId ->
-            val start = inputFrameList.size * workerId / workerCount
-            val end = inputFrameList.size * (workerId + 1) / workerCount
+            launch(Dispatchers.Default) {
+                val start = inputFrameList.size * workerId / workerCount
+                val end = inputFrameList.size * (workerId + 1) / workerCount
 
-            val pairs = inputFrameList.subList(start, end)
+                val pairs = inputFrameList.subList(start, end)
+                val size = detectDimensions() ?: (1920 to 1080)
 
-            NcnnRunner.createSession(
-                1920 to 1080,
-                model,
-            ).use { runner ->
+                NcnnRunner.createSession(
+                    size,
+                    model.toLarger(size),
+                ).use { runner ->
+                    pairs.forEach { (img0, img1) ->
+                        val idx = img0.name
+                            .substringBefore(".")
+                            .toInt()
 
-                pairs.forEach { (img0, img1) ->
-                    val idx = img0.name
-                        .substringBefore(".")
-                        .toInt()
+                        val savePath =
+                            inferredFrameDir / "${String.format("%06d", idx + 1)}.jpg"
 
-                    val savePath =
-                        inferredFrameDir / "${String.format("%06d", idx + 1)}.jpg"
-
-                    runner.inferFrame(
-                        img0,
-                        img1,
-                        savePath,
-                        0.5f
-                    )
+                        runner.inferFrame(
+                            img0,
+                            img1,
+                            savePath,
+                            0.5f
+                        )
+                    }
                 }
             }
         }
@@ -234,6 +262,7 @@ class MediaProcessor(
         options: Map<String, String> = defaultEncodingOptions,
         finishDirLambda: MediaProcessor.() -> Path
     ): Boolean {
+        println("开始编码为 MP4：$mp4OutputPath")
         val finishDir = finishDirLambda(this)
         val optStr = options.entries.joinToString(" ") { "${it.key} ${it.value}" }
         val success = FFmpegRunner.execute(
@@ -241,7 +270,8 @@ class MediaProcessor(
             "-i",
             quotePath(finishDir / "%06d.jpg"),
             optStr,
-            quotePath(mp4OutputPath)
+            quotePath(mp4OutputPath),
+            "-y"
         )
         return !success.isNullOrBlank()
     }

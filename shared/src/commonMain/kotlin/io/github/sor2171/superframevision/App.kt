@@ -47,14 +47,19 @@ import io.github.sor2171.superframevision.ui.screens.HomeScreen
 import io.github.sor2171.superframevision.ui.screens.InfoScreen
 import io.github.sor2171.superframevision.ui.screens.ProcessScreen
 import io.github.sor2171.superframevision.ui.screens.SettingsScreen
+import io.github.sor2171.superframevision.ui.screens.rememberConsoleState
+import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
 import io.github.vinceglb.filekit.dialogs.FileKitMode
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.dialogs.compose.rememberFileSaverLauncher
 import io.github.vinceglb.filekit.path
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import okio.Path
 import okio.Path.Companion.toPath
+import kotlin.coroutines.cancellation.CancellationException
 
 @Composable
 @Preview
@@ -69,9 +74,12 @@ fun App() {
 
     val settings by SettingsRepository.settings.collectAsState()
     val settingsScreenScrollState = rememberScrollState()
+    val consoleState = rememberConsoleState()
 
     val platform = currentPlatform()
     var processJob: Job? = null
+
+    fun usableSettings() = settings ?: SettingsRepository.OverallSettings.default
 
     LaunchedEffect(Unit) {
         SettingsRepository.load()
@@ -88,65 +96,102 @@ fun App() {
         }
     }
 
+    val saverPickerLauncher = @Composable { callback: (Path) -> Unit ->
+        rememberFileSaverLauncher(
+            dialogSettings = FileKitDialogSettings.createDefault(),
+            onError = {}
+        ) { file ->
+            val path = file?.path?.toPath() ?: return@rememberFileSaverLauncher
+            callback(path)
+        }
+    }
+
+
     val processStart: () -> Unit = {
-        processJob = coroutineScope.launch(Dispatchers.IO) {
+        processJob = coroutineScope.launch(Dispatchers.Default) {
+            isProcessing = true
             try {
-                isProcessing = true
-                queueFileList.forEach { queueFile ->
+                while (queueFileList.isNotEmpty()) {
+                    ensureActive()
+
+                    val queueFile = queueFileList.first()
                     queueFile.isProcessing.value = true
-                    MediaProcessor(
-                        queueFile.path,
-                        FileUtils.basicTmpDir
-                    ).use { mediaProcessor ->
-                        when (chosenProcessType) {
-                            ProcessType.ImageSR -> {
-                                mediaProcessor.processSuperResolution(
-                                    Models.REAL_A3_2,
-                                    1,
-                                    queueFile.path,
-                                    queueFile.path.parent!!
-                                )
-                            }
 
-                            ProcessType.VideoSR -> {
-                                check(mediaProcessor.extractFrames()) { "extractFrames" }
-                                mediaProcessor.processSuperResolution(Models.REAL_A3_2, 4)
-                                mediaProcessor.encodeToMp4 { this.upscaledFrameDir }
-                            }
+                    try {
+                        MediaProcessor(
+                            queueFile.path, FileUtils.basicTmpDir
+                        ).use { mediaProcessor ->
+                            println("开始处理：$chosenProcessType ${queueFile.path}")
+                            when (chosenProcessType) {
+                                ProcessType.ImageSR -> {
+                                    mediaProcessor.processSuperResolution(
+                                        Models.REAL_A3_2,
+                                        1,
+                                        queueFile.path,
+                                        queueFile.path.parent!!
+                                    )
+                                }
 
-                            ProcessType.VideoFI -> {
-                                val originalFrameRate = mediaProcessor.detectInputFrameRate()!!
-                                check(mediaProcessor.extractFrames()) { "extractFrames" }
-                                check(mediaProcessor.renumberToOdd { this.originFrameDir }) { "renumberToOdd" }
-                                mediaProcessor.inferLeftFrames(Models.RIFE4_26, 8)
-                                mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
-                            }
+                                ProcessType.VideoSR -> {
+                                    check(mediaProcessor.extractFrames())
+                                    { "Failed to extract frames" }
+                                    mediaProcessor.processSuperResolution(
+                                        Models.REAL_A3_2,
+                                        usableSettings().upscaleThread
+                                    )
+                                    mediaProcessor.encodeToMp4 { this.upscaledFrameDir }
+                                }
 
-                            ProcessType.VideoSRFI -> {
-                                val originalFrameRate = mediaProcessor.detectInputFrameRate()!!
-                                check(mediaProcessor.extractFrames()) { "extractFrames" }
-                                mediaProcessor.processSuperResolution(Models.REAL_A3_2, 4)
-                                check(mediaProcessor.renumberToOdd { this.upscaledFrameDir }) { "renumberToOdd" }
-                                mediaProcessor.inferLeftFrames(Models.RIFE4_26, 8)
-                                mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
+                                ProcessType.VideoFI -> {
+                                    val originalFrameRate = mediaProcessor.detectInputFrameRate()
+                                        ?: error("Failed to detect input frame rate")
+                                    check(mediaProcessor.extractFrames())
+                                    { "Failed to extract frames" }
+                                    check(mediaProcessor.renumberToOdd { this.originFrameDir })
+                                    { "Failed to renumber frames" }
+                                    mediaProcessor.inferLeftFrames(
+                                        Models.RIFE4_26,
+                                        usableSettings().inferThread
+                                    )
+                                    mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
+                                }
 
+                                ProcessType.VideoSRFI -> {
+                                    val originalFrameRate = mediaProcessor.detectInputFrameRate()
+                                        ?: error("Failed to detect input frame rate")
+                                    check(mediaProcessor.extractFrames())
+                                    { "Failed to extract frames" }
+                                    mediaProcessor.processSuperResolution(
+                                        Models.REAL_A3_2,
+                                        usableSettings().upscaleThread
+                                    )
+                                    check(mediaProcessor.renumberToOdd { this.upscaledFrameDir })
+                                    { "Failed to renumber frames" }
+                                    mediaProcessor.inferLeftFrames(
+                                        Models.RIFE4_26, usableSettings().inferThread
+                                    )
+                                    mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
+                                }
                             }
                         }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        println("Error processing file ${queueFile.path}: ${e.message}")
+                        e.printStackTrace()
+                    } finally {
+                        queueFile.isProcessing.value = false
+                        queueFileList.removeFirstOrNull()
                     }
-                    queueFile.isProcessing.value = false
                 }
-            } catch (e: Error) {
-                println(e.message)
             } finally {
-                queueFileList.removeAt(0)
                 isProcessing = false
             }
         }
     }
 
     val colorScheme = rememberDynamicColorScheme(
-        seedColor = seedColor,
-        isDark = isSystemInDarkTheme()
+        seedColor = seedColor, isDark = isSystemInDarkTheme()
     )
 
     MaterialTheme(
@@ -170,19 +215,16 @@ fun App() {
                             onClick = { currentScreen = screen },
                             icon = {
                                 Icon(
-                                    imageVector = screen.icon,
-                                    contentDescription = screen.label()
+                                    imageVector = screen.icon, contentDescription = screen.label()
                                 )
                             },
-                            label = { Text(screen.label()) }
-                        )
+                            label = { Text(screen.label()) })
                     }
                 }
             }
 
             Surface(
-                modifier = Modifier
-                    .fillMaxSize()
+                modifier = Modifier.fillMaxSize()
             ) {
                 AnimatedContent(
                     targetState = currentScreen,
@@ -198,12 +240,24 @@ fun App() {
                             processStart = processStart,
                             queueFileList = queueFileList,
                             filePickerLauncher = filePickerLauncher,
-                            chosenProcessType = chosenProcessType
+                            chosenProcessType = chosenProcessType,
+                            isProcessing = isProcessing
                         )
 
-                        Screens.Process -> ProcessScreen()
+                        Screens.Process -> ProcessScreen(
+                            cancelJob = { processJob?.cancel() },
+                            saverPickerLauncher = saverPickerLauncher,
+                            isProcessing = isProcessing,
+                            platform = platform,
+                            queueFileList = queueFileList,
+                            consoleState = consoleState
+                        )
 
-                        Screens.Settings -> SettingsScreen()
+                        Screens.Settings -> SettingsScreen(
+                            settingsScreenScrollState = settingsScreenScrollState,
+                            confirmChange = SettingsRepository::save,
+                            originSettings = settings
+                        )
 
                         Screens.Info -> InfoScreen()
                     }

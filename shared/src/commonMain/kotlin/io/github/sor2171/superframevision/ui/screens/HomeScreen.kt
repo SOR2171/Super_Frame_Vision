@@ -1,10 +1,13 @@
 package io.github.sor2171.superframevision.ui.screens
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
@@ -23,7 +26,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -79,6 +84,7 @@ fun HomeScreen(
     queueFileList: List<QueueFile>,
     filePickerLauncher: @Composable ((Path) -> Unit) -> PickerResultLauncher,
     chosenProcessType: ProcessType,
+    isProcessing: Boolean,
 ) {
     var isDragging by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
@@ -266,7 +272,7 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         OutlinedCard(
             modifier = Modifier
@@ -285,7 +291,8 @@ fun HomeScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(4.dp),
+                                .padding(4.dp)
+                                .padding(start = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(text = queueFile.path.toString())
@@ -305,8 +312,6 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
         Card(
             modifier = Modifier
                 .padding(16.dp)
@@ -323,14 +328,39 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
 
+                val backgroundColor by animateColorAsState(
+                    targetValue = if (isProcessing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    animationSpec = tween(durationMillis = 300),
+                    label = "buttonBackgroundColor"
+                )
+
+                val contentColor by animateColorAsState(
+                    targetValue = if (isProcessing) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
+                    animationSpec = tween(durationMillis = 300),
+                    label = "buttonContentColor"
+                )
+
                 Button(
+                    onClick = if (isProcessing) cancelJob else processStart,
                     modifier = Modifier.padding(8.dp),
-                    onClick = processStart,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Start Process",
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = backgroundColor,
+                        contentColor = contentColor
                     )
+                ) {
+                    AnimatedContent(
+                        targetState = isProcessing,
+                        transitionSpec = {
+                            (fadeIn(animationSpec = tween(220, delayMillis = 90)) + scaleIn(initialScale = 0.8f))
+                                .togetherWith(fadeOut(animationSpec = tween(90)) + scaleOut(targetScale = 0.8f))
+                        },
+                        label = "iconTransition"
+                    ) { targetIsProcessing ->
+                        Icon(
+                            imageVector = if (targetIsProcessing) Icons.Default.Stop else Icons.Default.PlayArrow,
+                            contentDescription = if (targetIsProcessing) "Stop Process" else "Start Process"
+                        )
+                    }
                 }
             }
         }

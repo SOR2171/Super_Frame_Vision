@@ -22,4 +22,6 @@ expect class NcnnRunner : AutoCloseable {
         savePath: Path,
         timestep: Float = 0.5f
     )
+
+    override fun close()
 }

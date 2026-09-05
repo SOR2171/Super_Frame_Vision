@@ -1,9 +1,12 @@
 package io.github.sor2171.superframevision.core.utils
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -20,16 +23,16 @@ import kotlinx.serialization.json.Json
 object SettingsRepository {
     @Serializable
     data class OverallSettings(
-        var theme: String = "auto",
-        var language: String = "zh",
+        val inferThread : Int = 8,
+        val upscaleThread: Int = 2
     ) {
         companion object {
             val default: OverallSettings get() = OverallSettings()
         }
     }
 
+    private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val mutex = Mutex()
-
     private val cached = MutableStateFlow<OverallSettings?>(null)
     val settings: StateFlow<OverallSettings?> = cached.asStateFlow()
 
@@ -52,9 +55,14 @@ object SettingsRepository {
     }
 
     /** 保存设置：更新内存 [cached] 并写入磁盘。 */
-    suspend fun save(value: OverallSettings): Unit = mutex.withLock {
+    fun save(value: OverallSettings) {
         cached.value = value
-        FileUtils.write(json.encodeToString(value), Const.CONFIG_FILE)
+        repositoryScope.launch {
+            mutex.withLock {
+                val jsonString = json.encodeToString(value)
+                FileUtils.write(jsonString, Const.CONFIG_FILE)
+            }
+        }
     }
 
     private suspend fun fetchAndCache(): OverallSettings =
@@ -62,9 +70,9 @@ object SettingsRepository {
 
     private suspend fun readFromStorage(): OverallSettings {
         val content = FileUtils.read(Const.CONFIG_FILE)
-        return content?.let {
+        return content?.toString(Charsets.UTF_8)?.let {
             runCatching {
-                json.decodeFromString<OverallSettings>(it.contentToString())
+                json.decodeFromString<OverallSettings>(it)
             }.getOrNull()
         } ?: OverallSettings.default.also { save(it) }
     }

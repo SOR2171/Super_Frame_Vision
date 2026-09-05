@@ -51,6 +51,7 @@ interface NcnnLibrary : Library {
     fun ncnn_mat_get_cstep(mat: Pointer): Long
     fun ncnn_mat_get_elempack(mat: Pointer): Long
     fun ncnn_net_set_vulkan_device(net: Pointer, device_index: Int)
+    fun ncnn_pipelinecache_clear(pipelineCachePtr: Pointer)
     fun ncnn_pipelinecache_destroy(pipeline_cache: Pointer)
     fun ncnn_pipelinecache_create(device_index: Int): Pointer
     fun ncnn_option_set_pipeline_cache(opt: Pointer, pipeline_cache: Pointer)
