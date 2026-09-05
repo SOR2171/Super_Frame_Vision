@@ -53,19 +53,19 @@ jobs:
       # macOS
       - name: Build macOS
         if: matrix.target == 'macos'
-        run: ./gradlew desktopApp:packageDmg --no-daemon
+        run: ./gradlew desktopApp:packageDmg --info --no-daemon
 
       # Windows
       - name: Build Windows
         if: matrix.target == 'windows'
         run: |
-          .\gradlew.bat desktopApp:packageExe desktopApp:packageMsi --no-daemon
+          .\gradlew.bat desktopApp:packageExe desktopApp:packageMsi --info --no-daemon
 
       # Linux
       - name: Build Linux
         if: matrix.target == 'linux'
         run: |
-          ./gradlew desktopApp:packageDeb desktopApp:packageRpm desktopApp:packageAppImage --no-daemon
+          ./gradlew desktopApp:packageDeb desktopApp:packageRpm desktopApp:packageAppImage --info --no-daemon
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v5
