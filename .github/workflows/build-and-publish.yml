@@ -55,6 +55,10 @@ jobs:
         if: matrix.target == 'macos'
         run: ./gradlew desktopApp:packageDmg --info --no-daemon
 
+      - name: Print jpackage log on failure
+        if: failure() && matrix.target == 'macos'
+        run: cat desktopApp/build/compose/logs/createDistributable/*.txt
+
       # Windows
       - name: Build Windows
         if: matrix.target == 'windows'

@@ -53,6 +53,10 @@ compose.desktop {
             macOS {
                 iconFile.set(project.file("icons/icon.icns"))
                 bundleID = packageName
+                appStore = false
+                signing {
+                    sign.set(false)
+                }
             }
 
             linux {
