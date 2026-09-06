@@ -16,7 +16,7 @@ dependencies {
     implementation(libs.compose.uiToolingPreview)
 }
 
-val appVersion = "0.2.0"
+val appVersion = "1.0.0"
 val appName = "Super Frame Vision"
 val packageName = "io.github.sor2171.superframevision"
 

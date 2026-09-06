@@ -15,13 +15,21 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,11 +39,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.SettingsRepository.OverallSettings
 import io.github.sor2171.superframevision.ui.component.NumberInputField
 import io.github.sor2171.superframevision.ui.component.SettingItem
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     confirmChange: (OverallSettings) -> Unit,
@@ -88,6 +98,64 @@ fun SettingsScreen(
             }
 
             Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                SettingItem(
+                    title = "应用主题色",
+                    tooltipText = "黑夜模式是自动的，只要挑一个你喜欢的颜色就好了。"
+                ) {
+                    var expanded by remember { mutableStateOf(false) }
+
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        OutlinedTextField(
+                            value = Const.colorList[settings!!.themeColor].getColorHex(),
+                            onValueChange = {},
+                            readOnly = true,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            modifier = Modifier
+                                .width(160.dp)
+                                .menuAnchor(
+                                    ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                    true
+                                ),
+                            singleLine = true
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            Const.colorList.forEachIndexed { index, themes ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            modifier = Modifier,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ){
+                                            Icon(
+                                                imageVector = Icons.Filled.Circle,
+                                                tint = themes.color,
+                                                contentDescription = null
+                                            )
+                                            Text(text = themes.getColorHex())
+                                        }
+                                    },
+                                    onClick = {
+                                        settings = settings?.copy(themeColor = index)
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Card(
                 modifier = Modifier.fillMaxSize()
             ) {
                 if (originSettings == null) {
@@ -110,7 +178,7 @@ fun SettingsScreen(
                             if (inputNumber < 1) inputNumber = 1
                             settings = settings?.copy(upscaleThread = inputNumber)
                         },
-                        modifier = Modifier.widthIn(max = 240.dp)
+                        modifier = Modifier.widthIn(max = 128.dp)
                     )
                 }
 
@@ -127,7 +195,7 @@ fun SettingsScreen(
                             if (inputNumber < 1) inputNumber = 1
                             settings = settings?.copy(inferThread = inputNumber)
                         },
-                        modifier = Modifier.widthIn(max = 240.dp)
+                        modifier = Modifier.widthIn(max = 128.dp)
                     )
                 }
 

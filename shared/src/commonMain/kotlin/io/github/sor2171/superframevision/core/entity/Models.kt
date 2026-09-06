@@ -6,10 +6,16 @@ enum class Models(
     val larger: Models?,
     val is16: Boolean
 ) {
+    RIFE4_26_4V(
+        label = "rife-v4.26-4kv",
+        size = 3840 to 2176,
+        larger = null,
+        is16 = true
+    ),
     RIFE4_26_4(
         label = "rife-v4.26-4k",
         size = 3840 to 2176,
-        larger = null,
+        larger = RIFE4_26_4V,
         is16 = true
     ),
     RIFE4_26_1V(

@@ -25,6 +25,7 @@
     <string name="info_sn">信息</string>
     <string name="info_github">在 GitHub 上\n给我一个 star</string>
     <string name="info_bilibili">关注我的B站</string>
-    <string name="info_qq_group">加入我的QQ群\n虽然现在不是我的</string>
+    <string name="info_qq_group_slv">加入QQ群\n虽然它不是我的</string>
+    <string name="info_qq_group">加入我的QQ群</string>
     <string name="info_donor">感谢您的支持！</string>
 </resources>

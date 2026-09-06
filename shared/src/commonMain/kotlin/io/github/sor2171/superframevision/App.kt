@@ -66,7 +66,6 @@ import kotlin.coroutines.cancellation.CancellationException
 fun App() {
     val coroutineScope = rememberCoroutineScope()
     var currentScreen by rememberSaveable { mutableStateOf(Screens.Home) }
-    var seedColor by remember { mutableStateOf(Const.colorList[0]) }
     var chosenProcessType by rememberSaveable { mutableStateOf(ProcessType.VideoFI) }
     var isProcessing by rememberSaveable { mutableStateOf(false) }
 
@@ -76,6 +75,7 @@ fun App() {
     val settingsScreenScrollState = rememberScrollState()
     val consoleState = rememberConsoleState()
 
+    val seedColor = Const.colorList[settings?.themeColor ?: 0].color
     val platform = currentPlatform()
     var processJob: Job? = null
 

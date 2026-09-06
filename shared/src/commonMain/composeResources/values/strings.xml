@@ -24,6 +24,7 @@
     <string name="info_sn">Info</string>
     <string name="info_github">give me a star on GitHub.</string>
     <string name="info_bilibili">subscribe to my BiliBili channel.</string>
-    <string name="info_qq_group">join my QQ group.\n(Through not mine now)</string>
+    <string name="info_qq_group_slv">join QQ group.\n(Through not mine now)</string>
+    <string name="info_qq_group">join my QQ group.</string>
     <string name="info_donor">Thank you for supporting me.</string>
 </resources>

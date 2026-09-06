@@ -58,7 +58,7 @@ fun LinkCard(
             Button(
                 modifier = Modifier
                     .height(48.dp)
-                    .width(128.dp),
+                    .width(92.dp),
                 onClick = {
                     Desktop.getDesktop().browse(
                         URI(link)

@@ -23,8 +23,10 @@ import kotlinx.serialization.json.Json
 object SettingsRepository {
     @Serializable
     data class OverallSettings(
-        val inferThread : Int = 8,
-        val upscaleThread: Int = 2
+        val themeColor: Int = 0,
+
+        val upscaleThread: Int = 2,
+        val inferThread: Int = 8,
     ) {
         companion object {
             val default: OverallSettings get() = OverallSettings()

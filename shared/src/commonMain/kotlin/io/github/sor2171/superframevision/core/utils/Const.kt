@@ -1,6 +1,7 @@
 package io.github.sor2171.superframevision.core.utils
 
 import androidx.compose.ui.graphics.Color
+import io.github.sor2171.superframevision.core.entity.Themes
 
 object Const {
     const val CONFIG_FILE = "config.json"
@@ -15,7 +16,8 @@ object Const {
 
     const val GITHUB_LINK = "https://github.com/SOR2171/Super_Frame_Vision"
     const val BILIBILI_LINK = "https://space.bilibili.com/398577276"
-    const val QQ_GROUP_LINK = "https://qm.qq.com/q/GxugmAFtS0"
+    const val QQ_GROUP_LINK_SLV = "https://qm.qq.com/q/GxugmAFtS0"
+    const val QQ_GROUP_LINK = "https://qm.qq.com/q/bZ0IGesRQQ"
 
     const val SOFTWARE_INFO = "以下内容硬编码于源码中：\n" +
             "The following content is hard-coded into the source code:" +
@@ -25,6 +27,21 @@ object Const {
             "If this software has been helpful to you, you can show your appreciation in the following ways."
 
     val colorList = listOf(
-        Color(227, 187, 181)
+        Themes(
+//            label = ,
+            color = Color(227, 187, 181)
+        ),
+        Themes(
+//            label = ,
+            color = Color(24, 170, 99)
+        ),
+        Themes(
+//            label = ,
+            color = Color(103, 58, 183)
+        ),
+        Themes(
+//            label = ,
+            color = Color(9, 29, 185)
+        )
     )
 }

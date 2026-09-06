@@ -37,6 +37,7 @@ import superframevision.shared.generated.resources.info_bilibili
 import superframevision.shared.generated.resources.info_donor
 import superframevision.shared.generated.resources.info_github
 import superframevision.shared.generated.resources.info_qq_group
+import superframevision.shared.generated.resources.info_qq_group_slv
 import superframevision.shared.generated.resources.qq
 
 @Composable
@@ -121,6 +122,13 @@ fun InfoScreen() {
                             stringRes = Res.string.info_bilibili,
                             link = Const.BILIBILI_LINK,
                             imageDescription = "BiliBili"
+                        )
+
+                        LinkCard(
+                            imageRes = Res.drawable.qq,
+                            stringRes = Res.string.info_qq_group_slv,
+                            link = Const.QQ_GROUP_LINK_SLV,
+                            imageDescription = "QQ"
                         )
 
                         LinkCard(

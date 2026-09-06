@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -42,7 +43,7 @@ fun SettingItem(
     ) {
         Row(
             modifier = Modifier
-                .padding(end = 16.dp, bottom = 4.dp)
+                .padding(start = 16.dp, bottom = 4.dp)
                 .align(Alignment.CenterVertically),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -50,6 +51,8 @@ fun SettingItem(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge
             )
+
+            Spacer(modifier = Modifier.size(8.dp))
 
             tooltipText?.let { text ->
                 TooltipBox(
@@ -72,7 +75,7 @@ fun SettingItem(
 
         Box(
             modifier = Modifier
-                .padding(top = 4.dp)
+                .padding(end = 16.dp)
                 .align(Alignment.CenterVertically)
         ) {
             content()
