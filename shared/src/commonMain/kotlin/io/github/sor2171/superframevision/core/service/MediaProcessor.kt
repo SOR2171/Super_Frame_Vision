@@ -175,17 +175,17 @@ class MediaProcessor(
         upscaledFrameDir: Path = this.upscaledFrameDir
     ) = coroutineScope {
         println("开始处理超分辨率，输出于$upscaledFrameDir")
-        launch(Dispatchers.Default) {
-            require(thread > 0) { "thread must be greater than 0" }
+        require(thread > 0) { "thread must be greater than 0" }
 
-            FileUtils.createDirectories(upscaledFrameDir)
+        FileUtils.createDirectories(upscaledFrameDir)
 
-            val inputs =
-                if (originFrameDir.isFile()) listOf(originFrameDir)
-                else FileUtils.list(originFrameDir)
-            val workerCount = minOf(thread, inputs.size)
+        val inputs =
+            if (originFrameDir.isFile()) listOf(originFrameDir)
+            else FileUtils.list(originFrameDir)
+        val workerCount = minOf(thread, inputs.size)
 
-            repeat(workerCount) { workerId ->
+        repeat(workerCount) { workerId ->
+            launch(Dispatchers.Default) {
                 val start = inputs.size * workerId / workerCount
                 val end = inputs.size * (workerId + 1) / workerCount
 
@@ -205,6 +205,7 @@ class MediaProcessor(
                     }
                 }
             }
+
         }
     }
 
