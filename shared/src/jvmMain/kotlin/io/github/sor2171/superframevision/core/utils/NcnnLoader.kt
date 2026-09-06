@@ -87,6 +87,9 @@ object NcnnLoader {
 
         return when (platform.os) {
             Platform.Os.Windows if platform.architecture == Platform.Architecture.X86_64
+                -> "/natives/windows-arm64/ncnn.dll" to ".dll"
+
+            Platform.Os.Windows if platform.architecture == Platform.Architecture.Arm64
                 -> "/natives/windows-x86_64/ncnn.dll" to ".dll"
 
             Platform.Os.MacOS if platform.architecture == Platform.Architecture.Arm64
@@ -94,6 +97,9 @@ object NcnnLoader {
 
             Platform.Os.Linux if platform.architecture == Platform.Architecture.X86_64
                 -> "/natives/linux-x86_64/libncnn.so" to ".so"
+
+            Platform.Os.Linux if platform.architecture == Platform.Architecture.Arm64
+                -> "/natives/linux-arm64/libncnn.so" to ".so"
 
             else -> throw UnsupportedOperationException("Unsupported OS: ${platform.os}, architecture: ${platform.architecture}.")
         }
