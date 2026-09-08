@@ -27,6 +27,8 @@ object SettingsRepository {
 
         val upscaleThread: Int = 2,
         val inferThread: Int = 8,
+
+        val vulkanDevice: Int = 1
     ) {
         companion object {
             val default: OverallSettings get() = OverallSettings()

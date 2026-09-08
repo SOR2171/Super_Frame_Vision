@@ -8,6 +8,7 @@ import com.sun.jna.Pointer
 import com.sun.jna.Structure
 import com.sun.jna.ptr.PointerByReference
 import org.slf4j.LoggerFactory
+import java.util.Collections.emptyList
 
 @Suppress("unused")
 object VulkanDeviceDetector {
@@ -122,7 +123,7 @@ object VulkanDeviceDetector {
             )
     }
 
-    fun detect(): List<VulkanDeviceInfo> {
+    fun detect(): MutableList<VulkanDeviceInfo> {
         val vulkan = try {
             loadVulkanLibrary()
         } catch (e: Throwable) {

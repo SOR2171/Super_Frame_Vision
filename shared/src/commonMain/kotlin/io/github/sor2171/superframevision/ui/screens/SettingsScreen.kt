@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.sor2171.superframevision.core.service.NcnnRunner
 import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.SettingsRepository.OverallSettings
@@ -135,7 +136,7 @@ fun SettingsScreen(
                                             modifier = Modifier,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically
-                                        ){
+                                        ) {
                                             Icon(
                                                 imageVector = Icons.Filled.Circle,
                                                 tint = themes.color,
@@ -266,6 +267,53 @@ fun SettingsScreen(
 //                        }
 //                    }
 //                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                SettingItem(
+                    title = "AI计算设备",
+                    tooltipText = "0号是CPU，很慢的，而且可能无法运行。"
+                ) {
+                    var expanded by remember { mutableStateOf(false) }
+                    val vulkanDevices = NcnnRunner.listVulkanDevices()
+                    vulkanDevices[0] = "CPU"
+
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        OutlinedTextField(
+                            value = vulkanDevices[settings!!.vulkanDevice],
+                            onValueChange = {},
+                            readOnly = true,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            modifier = Modifier
+                                .width(160.dp)
+                                .menuAnchor(
+                                    ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                    true
+                                ),
+                            singleLine = true
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            vulkanDevices.forEachIndexed { index, device ->
+                                DropdownMenuItem(
+                                    text = { Text(text = "$index: $device") },
+                                    onClick = {
+                                        settings = settings?.copy(vulkanDevice = index)
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
