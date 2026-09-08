@@ -20,6 +20,16 @@
 
     <string name="process_sn">处理</string>
 
+    <string name="process_running_on">软件运行于: %1$s %2$s</string>
+    <string name="process_internal_output_hint">这里，你将看到软件的内部输出</string>
+    <string name="process_status_processing">正在处理：%1$s</string>
+    <string name="process_status_pending">即将处理：%1$s</string>
+    <string name="process_queue_empty">队列为空</string>
+
+    <string name="process_btn_export_log">导出日志</string>
+    <string name="process_btn_clear_console">清空控制台</string>
+    <string name="process_cd_stop">停止</string>
+
     <string name="settings_sn">设置</string>
 
     <string name="settings_title_clear_cache">清空缓存</string>

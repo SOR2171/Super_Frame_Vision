@@ -19,6 +19,16 @@
 
     <string name="process_sn">Process</string>
 
+    <string name="process_running_on">Running on: %1$s %2$s</string>
+    <string name="process_internal_output_hint">Here, you will see the internal application output</string>
+    <string name="process_status_processing">Processing: %1$s</string>
+    <string name="process_status_pending">Upcoming: %1$s</string>
+    <string name="process_queue_empty">Queue is empty</string>
+
+    <string name="process_btn_export_log">Export Log</string>
+    <string name="process_btn_clear_console">Clear Console</string>
+    <string name="process_cd_stop">Stop</string>
+
     <string name="settings_sn">Settings</string>
 
     <string name="settings_title_clear_cache">Clear Cache</string>

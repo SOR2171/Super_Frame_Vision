@@ -42,6 +42,16 @@ import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.vinceglb.filekit.dialogs.compose.SaverResultLauncher
 import kotlinx.coroutines.launch
 import okio.Path
+import org.jetbrains.compose.resources.stringResource
+import superframevision.shared.generated.resources.Res
+import superframevision.shared.generated.resources.process_btn_clear_console
+import superframevision.shared.generated.resources.process_btn_export_log
+import superframevision.shared.generated.resources.process_cd_stop
+import superframevision.shared.generated.resources.process_internal_output_hint
+import superframevision.shared.generated.resources.process_queue_empty
+import superframevision.shared.generated.resources.process_running_on
+import superframevision.shared.generated.resources.process_status_pending
+import superframevision.shared.generated.resources.process_status_processing
 import java.io.OutputStream
 import java.io.PrintStream
 import java.time.LocalDateTime
@@ -86,16 +96,28 @@ fun ProcessScreen(
                 horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    text = "软件运行于: ${platform.os} ${platform.architecture}",
+                    text = stringResource(
+                        Res.string.process_running_on,
+                        platform.os,
+                        platform.architecture
+                    ),
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Text(
-                    text = "这里，你将看到软件的内部输出",
+                    text = stringResource(Res.string.process_internal_output_hint),
                     style = MaterialTheme.typography.bodyLarge
                 )
+
+                val currentFilePath = queueFileList.getOrNull(0)?.path
+                    ?: stringResource(Res.string.process_queue_empty)
+                val statusText = if (isProcessing) {
+                    stringResource(Res.string.process_status_processing, currentFilePath)
+                } else {
+                    stringResource(Res.string.process_status_pending, currentFilePath)
+                }
+
                 Text(
-                    text = (if (isProcessing) "正在处理：" else "即将处理：")
-                            + "${queueFileList.getOrNull(0)?.path ?: "队列为空"}",
+                    text = statusText,
                     style = MaterialTheme.typography.titleMedium
                 )
             }
@@ -112,7 +134,8 @@ fun ProcessScreen(
         }
 
         Surface(
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
                 .fillMaxWidth()
                 .background(Color(0xFF1E1E1E), shape = RoundedCornerShape(8.dp)),
             color = Color(0xFF1E1E1E),
@@ -145,7 +168,8 @@ fun ProcessScreen(
                 .height(64.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
                     .padding(start = 16.dp, end = 16.dp),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
@@ -158,7 +182,7 @@ fun ProcessScreen(
                         )
                     }
                 ) {
-                    Text("导出日志")
+                    Text(stringResource(Res.string.process_btn_export_log))
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -166,7 +190,7 @@ fun ProcessScreen(
                 OutlinedButton(
                     onClick = { consoleState.clear() }
                 ) {
-                    Text("清空控制台")
+                    Text(stringResource(Res.string.process_btn_clear_console))
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -177,7 +201,7 @@ fun ProcessScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Stop,
-                        contentDescription = "stop"
+                        contentDescription = stringResource(Res.string.process_cd_stop)
                     )
                 }
             }
