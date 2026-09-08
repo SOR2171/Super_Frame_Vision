@@ -9,8 +9,6 @@ import com.sun.jna.Structure
 import com.sun.jna.ptr.PointerByReference
 import org.slf4j.LoggerFactory
 
-
-
 @Suppress("unused")
 object VulkanDeviceDetector {
 
@@ -46,6 +44,7 @@ object VulkanDeviceDetector {
         val driverVersionString: String
             get() = "${driverVersion shr 22}.${(driverVersion shr 12) and 0x3FF}.${driverVersion and 0xFFF}"
     }
+
     interface VulkanLibrary : Library {
         fun vkCreateInstance(
             pCreateInfo: Pointer?,
@@ -65,30 +64,62 @@ object VulkanDeviceDetector {
     }
 
     class VkApplicationInfo : Structure() {
-        @JvmField var sType: Int = VK_STRUCTURE_TYPE_APPLICATION_INFO
-        @JvmField var pNext: Pointer? = null
-        @JvmField var pApplicationName: Pointer? = null
-        @JvmField var applicationVersion: Int = 1
-        @JvmField var pEngineName: Pointer? = null
-        @JvmField var engineVersion: Int = 1
-        @JvmField var apiVersion: Int = VK_API_VERSION_1_0
+        @JvmField
+        var sType: Int = VK_STRUCTURE_TYPE_APPLICATION_INFO
+        @JvmField
+        var pNext: Pointer? = null
+        @JvmField
+        var pApplicationName: Pointer? = null
+        @JvmField
+        var applicationVersion: Int = 1
+        @JvmField
+        var pEngineName: Pointer? = null
+        @JvmField
+        var engineVersion: Int = 1
+        @JvmField
+        var apiVersion: Int = VK_API_VERSION_1_0
 
         override fun getFieldOrder(): List<String> =
-            listOf("sType", "pNext", "pApplicationName", "applicationVersion", "pEngineName", "engineVersion", "apiVersion")
+            listOf(
+                "sType",
+                "pNext",
+                "pApplicationName",
+                "applicationVersion",
+                "pEngineName",
+                "engineVersion",
+                "apiVersion"
+            )
     }
 
     class VkInstanceCreateInfo : Structure() {
-        @JvmField var sType: Int = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
-        @JvmField var pNext: Pointer? = null
-        @JvmField var flags: Int = 0
-        @JvmField var pApplicationInfo: Pointer? = null
-        @JvmField var enabledLayerCount: Int = 0
-        @JvmField var ppEnabledLayerNames: Pointer? = null
-        @JvmField var enabledExtensionCount: Int = 0
-        @JvmField var ppEnabledExtensionNames: Pointer? = null
+        @JvmField
+        var sType: Int = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
+        @JvmField
+        var pNext: Pointer? = null
+        @JvmField
+        var flags: Int = 0
+        @JvmField
+        var pApplicationInfo: Pointer? = null
+        @JvmField
+        var enabledLayerCount: Int = 0
+        @JvmField
+        var ppEnabledLayerNames: Pointer? = null
+        @JvmField
+        var enabledExtensionCount: Int = 0
+        @JvmField
+        var ppEnabledExtensionNames: Pointer? = null
 
         override fun getFieldOrder(): List<String> =
-            listOf("sType", "pNext", "flags", "pApplicationInfo", "enabledLayerCount", "ppEnabledLayerNames", "enabledExtensionCount", "ppEnabledExtensionNames")
+            listOf(
+                "sType",
+                "pNext",
+                "flags",
+                "pApplicationInfo",
+                "enabledLayerCount",
+                "ppEnabledLayerNames",
+                "enabledExtensionCount",
+                "ppEnabledExtensionNames"
+            )
     }
 
     fun detect(): List<VulkanDeviceInfo> {

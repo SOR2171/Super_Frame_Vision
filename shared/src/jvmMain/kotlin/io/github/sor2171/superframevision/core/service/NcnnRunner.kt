@@ -5,7 +5,6 @@ import com.sun.jna.Pointer
 import com.sun.jna.ptr.PointerByReference
 import io.github.sor2171.superframevision.core.entity.Models
 import io.github.sor2171.superframevision.core.utils.FileUtils
-import io.github.sor2171.superframevision.core.utils.NcnnLoader
 import io.github.sor2171.superframevision.core.utils.VulkanDeviceDetector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -38,11 +37,11 @@ actual class NcnnRunner(
     actual companion object {
         private val logger = LoggerFactory.getLogger(NcnnRunner::class.java)
 
-        private val cLib: NcnnLibrary by lazy {
-            val libAbsolutePath = NcnnLoader.loadNcnn()
-            val instance = Native.load(libAbsolutePath, NcnnLibrary::class.java)
-            instance
-        }
+        private val cLib: NcnnLibrary by lazy { Native.load("ncnn", NcnnLibrary::class.java) }
+//        {
+//            val libAbsolutePath = NcnnLoader.loadNcnn()
+//            return@lazy Native.load(libAbsolutePath, NcnnLibrary::class.java)
+//        }
 
         actual fun listVulkanDevices(): List<String> {
             return VulkanDeviceDetector.detect().map { it.toString() }

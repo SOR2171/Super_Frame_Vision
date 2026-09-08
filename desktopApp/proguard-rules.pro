@@ -20,5 +20,11 @@
     native <methods>;
 }
 
-# 5. 保留 Kotlin 序列化与反射注解
 -keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
+-keepattributes StackMapTable, StackMap, LineNumberTable
+
+-dontoptimize
+
+-keep class androidx.compose.runtime.** { *; }
+
+-keepattributes RuntimeVisibleAnnotations, RuntimeInvisibleAnnotations, RuntimeVisibleParameterAnnotations, RuntimeInvisibleParameterAnnotations
