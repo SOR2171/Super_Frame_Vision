@@ -16,7 +16,7 @@ dependencies {
     implementation(libs.compose.uiToolingPreview)
 }
 
-val appVersion = "1.0.0"
+val appVersion = System.getenv("TAG")?.removePrefix("v") ?: "1.0.0"
 val appName = "Super Frame Vision"
 val packageName = "io.github.sor2171.superframevision"
 
@@ -33,7 +33,7 @@ compose.desktop {
                 TargetFormat.Dmg,
                 // Linux
                 TargetFormat.Deb,
-                TargetFormat.Rpm ,
+                TargetFormat.Rpm,
                 TargetFormat.AppImage
             )
             packageName = appName
