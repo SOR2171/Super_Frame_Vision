@@ -194,7 +194,7 @@ class MediaProcessor(
 
                 NcnnRunner.createSession(
                     size,
-                    model.toLarger(size),
+                    model,
                 ).use { runner ->
                     paths.forEach { path ->
                         val savePath =
@@ -236,7 +236,7 @@ class MediaProcessor(
 
                 NcnnRunner.createSession(
                     size,
-                    model.toLarger(size),
+                    model,
                 ).use { runner ->
                     pairs.forEach { (img0, img1) ->
                         val idx = img0.name

@@ -1,11 +1,16 @@
 package io.github.sor2171.superframevision.core.service
 
 import com.sun.jna.Library
+import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.PointerByReference
 
 @Suppress("FunctionName", "LocalVariableName")
 interface NcnnLibrary : Library {
+    companion object {
+        val INSTANCE: NcnnLibrary by lazy { Native.load("ncnn", NcnnLibrary::class.java) }
+    }
+
     fun ncnn_option_create(): Pointer
     fun ncnn_option_destroy(opt: Pointer)
     fun ncnn_option_set_num_threads(opt: Pointer, numThreads: Int)
@@ -25,7 +30,7 @@ interface NcnnLibrary : Library {
 
     fun ncnn_extractor_input(ex: Pointer, name: String, mat: Pointer): Int
 
-    fun ncnn_mat_destroy(mat: Pointer)
+    fun ncnn_mat_destroy(mat: Pointer?)
 
     fun ncnn_mat_create_3d_elem(
         w: Int,
@@ -36,11 +41,21 @@ interface NcnnLibrary : Library {
         allocator: Pointer?
     ): Pointer
 
-    fun ncnn_mat_get_w(mat: Pointer): Int
-    fun ncnn_mat_get_h(mat: Pointer): Int
-    fun ncnn_mat_get_c(mat: Pointer): Int
-    fun ncnn_mat_get_elemsize(mat: Pointer): Long
-    fun ncnn_mat_get_data(mat: Pointer): Pointer
+    fun ncnn_mat_get_dims(mat: Pointer): Int
+    fun ncnn_mat_get_d(mat: Pointer): Int
+    fun ncnn_mat_reshape_3d(
+        mat: Pointer,
+        width: Int,
+        height: Int,
+        channels: Int,
+        allocator: Pointer?
+    ): Pointer
+
+    fun ncnn_mat_get_w(mat: Pointer?): Int
+    fun ncnn_mat_get_h(mat: Pointer?): Int
+    fun ncnn_mat_get_c(mat: Pointer?): Int
+    fun ncnn_mat_get_elemsize(mat: Pointer?): Long
+    fun ncnn_mat_get_data(mat: Pointer?): Pointer
 
     fun ncnn_mat_fill_float(mat: Pointer, v: Float)
 
@@ -48,8 +63,8 @@ interface NcnnLibrary : Library {
     fun ncnn_net_load_model_memory(net: Pointer, mem: ByteArray): Long
 
     fun ncnn_extractor_extract(ex: Pointer, name: String, out: PointerByReference): Int
-    fun ncnn_mat_get_cstep(mat: Pointer): Long
-    fun ncnn_mat_get_elempack(mat: Pointer): Long
+    fun ncnn_mat_get_cstep(mat: Pointer?): Long
+    fun ncnn_mat_get_elempack(mat: Pointer?): Long
     fun ncnn_net_set_vulkan_device(net: Pointer, device_index: Int)
     fun ncnn_pipelinecache_clear(pipelineCachePtr: Pointer)
     fun ncnn_pipelinecache_destroy(pipeline_cache: Pointer)

@@ -6,7 +6,7 @@ import okio.Path
 @Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING", "unused")
 expect class NcnnRunner : AutoCloseable {
     companion object {
-        fun listVulkanDevices(): List<String>
+        fun listVulkanDevices(): MutableList<String>
         suspend fun createSession(
             sourceSize: Pair<Int, Int>,
             model: Models,
