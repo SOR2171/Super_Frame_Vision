@@ -21,7 +21,25 @@
 
     <string name="settings_sn">Settings</string>
 
+    <string name="settings_title_clear_cache">Clear Cache</string>
+    <string name="settings_tooltip_clear_cache">Located in %1$s. Do not clear while processing files.</string>
+    <string name="settings_cd_clear_cache">Clear cache</string>
+
+    <string name="settings_title_theme_color">App Theme Color</string>
+    <string name="settings_tooltip_theme_color">Dark mode is automatic. Just pick a color you like.</string>
+
+    <string name="settings_title_upscale_threads">Upscaling Threads</string>
+    <string name="settings_title_infer_threads">Frame Interpolation Threads</string>
+    <string name="settings_tooltip_threads">More threads increase performance and speed, but require higher device specs. Quality remains unchanged.</string>
+
+    <string name="settings_title_ai_device">AI Compute Device</string>
+    <string name="settings_tooltip_ai_device">Device 0 is CPU, which is very slow and may fail to run.</string>
+
+    <string name="settings_cd_reset">Reset</string>
+    <string name="settings_cd_save">Save</string>
+
     <string name="info_sn">Info</string>
+
     <string name="info_github">give me a star on GitHub.</string>
     <string name="info_bilibili">subscribe to my BiliBili channel.</string>
     <string name="info_qq_group_slv">join QQ group.\n(Through not mine now)</string>

@@ -45,6 +45,20 @@ import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.SettingsRepository.OverallSettings
 import io.github.sor2171.superframevision.ui.component.NumberInputField
 import io.github.sor2171.superframevision.ui.component.SettingItem
+import org.jetbrains.compose.resources.stringResource
+import superframevision.shared.generated.resources.Res
+import superframevision.shared.generated.resources.settings_cd_clear_cache
+import superframevision.shared.generated.resources.settings_cd_reset
+import superframevision.shared.generated.resources.settings_cd_save
+import superframevision.shared.generated.resources.settings_title_ai_device
+import superframevision.shared.generated.resources.settings_title_clear_cache
+import superframevision.shared.generated.resources.settings_title_infer_threads
+import superframevision.shared.generated.resources.settings_title_theme_color
+import superframevision.shared.generated.resources.settings_title_upscale_threads
+import superframevision.shared.generated.resources.settings_tooltip_ai_device
+import superframevision.shared.generated.resources.settings_tooltip_clear_cache
+import superframevision.shared.generated.resources.settings_tooltip_theme_color
+import superframevision.shared.generated.resources.settings_tooltip_threads
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,8 +88,11 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 SettingItem(
-                    title = "清空缓存",
-                    tooltipText = "它在 ${FileUtils.basicTmpDir}，不要在处理文件时清理。"
+                    title = stringResource(Res.string.settings_title_clear_cache),
+                    tooltipText = stringResource(
+                        Res.string.settings_tooltip_clear_cache,
+                        FileUtils.basicTmpDir
+                    )
                 ) {
                     Button(
                         onClick = {
@@ -92,7 +109,7 @@ fun SettingsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
-                            contentDescription = "clear cache"
+                            contentDescription = stringResource(Res.string.settings_cd_clear_cache)
                         )
                     }
                 }
@@ -102,8 +119,8 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 SettingItem(
-                    title = "应用主题色",
-                    tooltipText = "黑夜模式是自动的，只要挑一个你喜欢的颜色就好了。"
+                    title = stringResource(Res.string.settings_title_theme_color),
+                    tooltipText = stringResource(Res.string.settings_tooltip_theme_color)
                 ) {
                     var expanded by remember { mutableStateOf(false) }
 
@@ -169,8 +186,8 @@ fun SettingsScreen(
                 }
 
                 SettingItem(
-                    title = "超分线程数",
-                    tooltipText = "线程越多，设备要求越高，速度越快，质量不变"
+                    title = stringResource(Res.string.settings_title_upscale_threads),
+                    tooltipText = stringResource(Res.string.settings_tooltip_threads)
                 ) {
                     NumberInputField(
                         value = settings?.upscaleThread?.toString() ?: "",
@@ -186,8 +203,8 @@ fun SettingsScreen(
                 HorizontalDivider()
 
                 SettingItem(
-                    title = "插帧线程数",
-                    tooltipText = "线程越多，设备要求越高，速度越快，质量不变"
+                    title = stringResource(Res.string.settings_title_infer_threads),
+                    tooltipText = stringResource(Res.string.settings_tooltip_threads)
                 ) {
                     NumberInputField(
                         value = settings?.inferThread?.toString() ?: "",
@@ -199,82 +216,14 @@ fun SettingsScreen(
                         modifier = Modifier.widthIn(max = 128.dp)
                     )
                 }
-
-//                SettingItem(
-//                    title = "启用通知", tooltipText = "开启后将实时接收系统推送消息"
-//                ) {
-//                    Switch(
-//                        checked = settings?.isTrue ?: false,
-//                        onCheckedChange = { settings = settings?.copy(isTrue = it) })
-//                }
-//
-//                HorizontalDivider()
-//
-//                SettingItem(
-//                    title = "服务器地址", tooltipText = "填写 API 服务的基准 URL"
-//                ) {
-//                    OutlinedTextField(
-//                        value = settings?.language ?: "Loading...",
-//                        onValueChange = { settings = settings?.copy(language = it) },
-//                        singleLine = true,
-//                        modifier = Modifier.widthIn(max = 240.dp)
-//                    )
-//                }
-//
-//                HorizontalDivider()
-//
-//                // 3. 单选选项 (Radio)
-//                SettingItem(
-//                    title = "主题模式", tooltipText = "选择适合你的界面外观样式"
-//                ) {
-//                    Row(verticalAlignment = Alignment.CenterVertically) {
-//                        listOf("浅色", "深色", "跟随系统").forEach { theme ->
-//                            Row(
-//                                verticalAlignment = Alignment.CenterVertically,
-//                                modifier = Modifier.padding(end = 8.dp)
-//                            ) {
-//                                RadioButton(
-//                                    selected = (settings?.theme == theme),
-//                                    onClick = { settings = settings?.copy(theme = theme) })
-//                                Text(text = theme, style = MaterialTheme.typography.bodyMedium)
-//                            }
-//                        }
-//                    }
-//                }
-//
-//                HorizontalDivider()
-
-                // 4. 多选选项 (Checkbox)
-//                SettingItem(
-//                    title = "数据同步项", tooltipText = "选择需要备份到云端的数据类型"
-//                ) {
-//                    Row(verticalAlignment = Alignment.CenterVertically) {
-//                        val items = listOf("相册", "文档", "设置")
-//                        items.forEach { option ->
-//                            val isChecked = settings.syncItems.contains(option)
-//                            Row(
-//                                verticalAlignment = Alignment.CenterVertically,
-//                                modifier = Modifier.padding(end = 8.dp)
-//                            ) {
-//                                Checkbox(
-//                                    checked = isChecked, onCheckedChange = { checked ->
-//                                        val newList = settings.syncItems.toMutableList()
-//                                        if (checked) newList.add(option) else newList.remove(option)
-//                                        onSettingsChange(settings.copy(syncItems = newList))
-//                                    })
-//                                Text(text = option, style = MaterialTheme.typography.bodyMedium)
-//                            }
-//                        }
-//                    }
-//                }
             }
 
             Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 SettingItem(
-                    title = "AI计算设备",
-                    tooltipText = "0号是CPU，很慢的，而且可能无法运行。"
+                    title = stringResource(Res.string.settings_title_ai_device),
+                    tooltipText = stringResource(Res.string.settings_tooltip_ai_device)
                 ) {
                     var expanded by remember { mutableStateOf(false) }
                     val vulkanDevices = NcnnRunner.listVulkanDevices()
@@ -285,7 +234,7 @@ fun SettingsScreen(
                         onExpandedChange = { expanded = !expanded }
                     ) {
                         OutlinedTextField(
-                            value = vulkanDevices[settings!!.vulkanDevice],
+                            value = vulkanDevices.getOrElse(settings!!.vulkanDevice) { "" },
                             onValueChange = {},
                             readOnly = true,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -335,7 +284,7 @@ fun SettingsScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = "reset"
+                        contentDescription = stringResource(Res.string.settings_cd_reset)
                     )
                 }
 
@@ -344,15 +293,15 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         settings?.let { confirmChange(it) }
-                    }, enabled = settings != originSettings
+                    },
+                    enabled = settings != originSettings
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "save"
+                        contentDescription = stringResource(Res.string.settings_cd_save)
                     )
                 }
             }
         }
-
     }
 }
