@@ -20,6 +20,21 @@
     native <methods>;
 }
 
+
+# 完整保留 JNA 及其所有子包、内部类、属性与方法
+-keep class com.sun.jna.** { *; }
+-keepclassmembers class com.sun.jna.** { *; }
+
+# 保留实现 JNA 接口的类及内部类
+-keep class * implements com.sun.jna.** { *; }
+
+-dontwarn com.sun.jna.**
+
+# 保留与 Native 交互的接口和实现
+-keep interface com.sun.jna.** { *; }
+-keepclassmembers class * implements com.sun.jna.** { *; }
+
+-keepattributes InnerClasses, Signature
 -keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
 -keepattributes StackMapTable, StackMap, LineNumberTable
 
