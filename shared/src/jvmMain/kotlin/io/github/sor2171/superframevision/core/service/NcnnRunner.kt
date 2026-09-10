@@ -1,5 +1,6 @@
 package io.github.sor2171.superframevision.core.service
 
+import com.sun.jna.Memory
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.PointerByReference
 import io.github.sor2171.superframevision.core.entity.Models
@@ -15,6 +16,8 @@ import java.io.ByteArrayInputStream
 import javax.imageio.IIOImage
 import javax.imageio.ImageIO
 import javax.imageio.ImageWriteParam
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 @Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING", "SameParameterValue")
 actual class NcnnRunner(
@@ -25,6 +28,10 @@ actual class NcnnRunner(
     private val times: Int
 ) : AutoCloseable {
     private val elemsize = 4L
+    private var modelMemory: Memory? = null
+
+    @OptIn(ExperimentalAtomicApi::class)
+    private val closed = AtomicBoolean(false)
 
     actual companion object {
         private val logger = LoggerFactory.getLogger(NcnnRunner::class.java)
@@ -40,65 +47,174 @@ actual class NcnnRunner(
             times: Int,
             deviceIndex: Int
         ): NcnnRunner {
-            val modelParam = Res.readBytes("files/${model.label}/flownet_opt.param")
-            val modelBin = Res.readBytes("files/${model.label}/flownet_opt.bin")
-
-            val option = cLib.ncnn_option_create()
-            check(option != Pointer.NULL) { "Failed to create ncnn option" }
-
             var pipelineCache: Pointer? = null
             var network: Pointer? = null
+            var ownershipTransferred = false
+
+            var ownedModelMemory: Memory? = null
+
+
+            val modelParam = Res.readBytes(
+                "files/${model.label}/flownet_opt.param"
+            )
+            val modelBin = Res.readBytes(
+                "files/${model.label}/flownet_opt.bin"
+            )
+
+            // 文本 param 的内存加载接口通常要求以 '\0' 结尾。
+            val terminatedParam =
+                if (modelParam.lastOrNull() == 0.toByte()) {
+                    modelParam
+                } else {
+                    modelParam.copyOf(modelParam.size + 1)
+                }
+
+            val option = cLib.ncnn_option_create()
+            check(option != Pointer.NULL) {
+                "Failed to create ncnn option"
+            }
 
             try {
-                cLib.ncnn_option_set_num_threads(option, 1)
-                cLib.ncnn_option_set_use_vulkan_compute(option, 1)
+                // 负数索引在这里作为不尝试 Vulkan 的策略。
+                // 是否允许它进入此方法，也可以由上层参数校验决定。
+                val useVulkan = if (deviceIndex >= 0) {
+                    val cache = cLib.ncnn_pipelinecache_create(deviceIndex)
 
-                val fp16Flag = if (model.is16) 1 else 0
+                    if (cache != Pointer.NULL) {
+                        pipelineCache = cache
+                        true
+                    } else {
+                        logger.warn(
+                            "Failed to create ncnn pipeline cache for deviceIndex={}. " +
+                                    "Falling back to CPU. Check ncnn Vulkan support " +
+                                    "and ncnn device index mapping.",
+                            deviceIndex
+                        )
+                        false
+                    }
+                } else {
+                    logger.info(
+                        "Vulkan is not selected: deviceIndex={}. Using CPU.",
+                        deviceIndex
+                    )
+                    false
+                }
+
+                val numThreads = if (useVulkan) {
+                    1
+                } else {
+                    Runtime.getRuntime()
+                        .availableProcessors()
+                        .coerceAtLeast(1)
+                }
+
+                cLib.ncnn_option_set_num_threads(option, numThreads)
+                cLib.ncnn_option_set_use_vulkan_compute(
+                    option,
+                    if (useVulkan) 1 else 0
+                )
+
+                // CPU 回退时使用较保守的 FP32 配置。
+                val fp16Flag = if (useVulkan && model.is16) 1 else 0
+
                 cLib.ncnn_option_set_use_fp16_packed(option, fp16Flag)
                 cLib.ncnn_option_set_use_fp16_storage(option, fp16Flag)
                 cLib.ncnn_option_set_use_fp16_arithmetic(option, fp16Flag)
                 cLib.ncnn_option_set_use_packing_layout(option, fp16Flag)
 
-                pipelineCache = cLib.ncnn_pipelinecache_create(deviceIndex)
-                check(pipelineCache != Pointer.NULL) { "Failed to create ncnn pipeline cache" }
+                pipelineCache?.let { cache ->
+                    cLib.ncnn_option_set_pipeline_cache(option, cache)
+                }
 
-                cLib.ncnn_option_set_pipeline_cache(option, pipelineCache)
+                val net = cLib.ncnn_net_create()
+                check(net != Pointer.NULL) {
+                    "Failed to create ncnn network"
+                }
+                network = net
 
-                network = cLib.ncnn_net_create()
-                check(network != Pointer.NULL) { "Failed to create ncnn network" }
+                // CPU 回退时不能再设置 Vulkan 设备。
+                if (useVulkan) {
+                    cLib.ncnn_net_set_vulkan_device(net, deviceIndex)
+                }
 
-                cLib.ncnn_net_set_vulkan_device(network, deviceIndex)
-                cLib.ncnn_net_set_option(network, option)
+                cLib.ncnn_net_set_option(net, option)
 
-                val paramResult = cLib.ncnn_net_load_param_memory(network, modelParam)
-                require(paramResult == 0L) { "Failed to load model param: $paramResult" }
-                val modelResult = cLib.ncnn_net_load_model_memory(network, modelBin)
-                logger.debug("load model size: $modelResult")
+                val paramResult = cLib.ncnn_net_load_param_memory(
+                    net,
+                    terminatedParam
+                )
+                check(paramResult == 0L) {
+                    "Failed to load model param: $paramResult"
+                }
+
+                require(modelBin.isNotEmpty()) {
+                    "Model binary is empty"
+                }
+
+                val nativeModel = Memory(modelBin.size.toLong())
+
+                // 先登记所有权，保证后续 write/load 抛异常时也能释放。
+                ownedModelMemory = nativeModel
+
+                nativeModel.write(
+                    0L,
+                    modelBin,
+                    0,
+                    modelBin.size
+                )
+
+                val modelResult = cLib.ncnn_net_load_model_memory(
+                    net,
+                    nativeModel
+                )
+
+                logger.info(
+                    "Loaded model memory: bytes={}, result={}",
+                    modelBin.size,
+                    modelResult
+                )
+
+                // 保留你当前接口的返回值处理。
+                // 此接口的成功判据需要按实际使用的 c_api.h 确认，
+                // 不要直接套用文件加载接口的 result == 0。
+                logger.info("load model result: {}", modelResult)
 
                 val runner = NcnnRunner(
                     sourceSize = sourceSize,
-                    modelNetPtr = network,
+                    modelNetPtr = net,
                     optionPtr = option,
                     pipelineCachePtr = pipelineCache,
                     times = times
                 )
 
-                network = null
-                pipelineCache = null
+                logger.info(
+                    "Created ncnn session: backend={}, deviceIndex={}, threads={}",
+                    if (useVulkan) "Vulkan" else "CPU",
+                    if (useVulkan) deviceIndex else -1,
+                    numThreads
+                )
 
+                runner.modelMemory = nativeModel
+                ownershipTransferred = true
                 return runner
             } finally {
-                if (network != null && network != Pointer.NULL) {
-                    cLib.ncnn_net_destroy(network)
-                }
-
-                if (pipelineCache != null && pipelineCache != Pointer.NULL) {
-                    cLib.ncnn_pipelinecache_clear(pipelineCache)
-                    cLib.ncnn_pipelinecache_destroy(pipelineCache)
-                }
-
-                if (network != null) {
-                    cLib.ncnn_option_destroy(option)
+                if (!ownershipTransferred) {
+                    try {
+                        network?.let { net ->
+                            cLib.ncnn_net_destroy(net)
+                        }
+                    } finally {
+                        try {
+                            pipelineCache?.let { cache ->
+                                cLib.ncnn_pipelinecache_clear(cache)
+                                cLib.ncnn_pipelinecache_destroy(cache)
+                            }
+                        } finally {
+                            ownedModelMemory.use { _ ->
+                                cLib.ncnn_option_destroy(option)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -296,7 +412,7 @@ actual class NcnnRunner(
 
                     currentTileIndex++
 
-                    logger.debug(
+                    logger.info(
                         "RIFE Tile {}/{}: input=({},{} {}x{}), tensor={}x{}",
                         currentTileIndex,
                         totalTileCount,
@@ -814,9 +930,8 @@ actual class NcnnRunner(
 
                     currentTileIndex++
 
-                    logger.debug(
-                        "Upscale Tile {}/{}: input=({},{} {}x{}), " +
-                                "core=({},{} {}x{})",
+                    logger.info(
+                        "Upscale Tile {}/{}: input=({},{} {}x{}), core=({},{} {}x{})",
                         currentTileIndex,
                         totalTileCount,
                         tileX0,
@@ -1406,16 +1521,28 @@ actual class NcnnRunner(
         }
     }
 
+    @OptIn(ExperimentalAtomicApi::class)
     actual override fun close() {
-        if (modelNetPtr != Pointer.NULL) {
+        if (!closed.compareAndSet(expectedValue = false, newValue = true)) {
+            return
+        }
+
+        try {
             cLib.ncnn_net_destroy(modelNetPtr)
-        }
-        if (pipelineCachePtr != Pointer.NULL) {
-            cLib.ncnn_pipelinecache_clear(pipelineCachePtr)
-            cLib.ncnn_pipelinecache_destroy(pipelineCachePtr)
-        }
-        if (optionPtr != Pointer.NULL) {
-            cLib.ncnn_option_destroy(optionPtr)
+        } finally {
+            try {
+                pipelineCachePtr?.let { cache ->
+                    cLib.ncnn_pipelinecache_clear(cache)
+                    cLib.ncnn_pipelinecache_destroy(cache)
+                }
+            } finally {
+                try {
+                    cLib.ncnn_option_destroy(optionPtr)
+                } finally {
+                    modelMemory?.close()
+                    modelMemory = null
+                }
+            }
         }
     }
 }

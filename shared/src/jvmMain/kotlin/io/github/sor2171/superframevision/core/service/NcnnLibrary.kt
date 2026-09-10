@@ -60,7 +60,7 @@ interface NcnnLibrary : Library {
     fun ncnn_mat_fill_float(mat: Pointer, v: Float)
 
     fun ncnn_net_load_param_memory(net: Pointer, mem: ByteArray): Long
-    fun ncnn_net_load_model_memory(net: Pointer, mem: ByteArray): Long
+    fun ncnn_net_load_model_memory(net: Pointer, mem: Pointer): Long
 
     fun ncnn_extractor_extract(ex: Pointer, name: String, out: PointerByReference): Int
     fun ncnn_mat_get_cstep(mat: Pointer?): Long

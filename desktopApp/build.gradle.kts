@@ -25,6 +25,8 @@ val appVersion = System.getenv("TAG")?.removePrefix("v")
         val minor = now.monthValue
         val build = now.dayOfMonth * 100 + now.hour
 
+        println(build)
+
         "$major.$minor.$build"
     }
 val appName = "Super Frame Vision"

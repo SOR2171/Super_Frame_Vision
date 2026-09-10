@@ -35,3 +35,8 @@
 
 -ignorewarnings
 -dontoptimize
+-dontshrink
+-dontobfuscate
+
+-printmapping build/compose/logs/proguardReleaseJars/mapping.txt
+-printseeds build/compose/logs/proguardReleaseJars/seeds.txt

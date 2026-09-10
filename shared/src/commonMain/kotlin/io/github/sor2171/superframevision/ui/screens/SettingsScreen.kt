@@ -227,9 +227,9 @@ fun SettingsScreen(
                 ) {
                     var expanded by remember { mutableStateOf(false) }
                     val vulkanDevices = NcnnRunner.listVulkanDevices().let {
-                        return@let if (it.isEmpty()) mutableListOf("AUTO")
+                        return@let if (it.isEmpty()) mutableListOf("CPU")
                         else {
-                            it.addLast("AUTO")
+                            it.addLast("CPU")
                             it
                         }
                     }
@@ -239,7 +239,7 @@ fun SettingsScreen(
                         onExpandedChange = { expanded = !expanded }
                     ) {
                         OutlinedTextField(
-                            value = vulkanDevices.getOrElse(settings!!.vulkanDevice) { "AUTO" },
+                            value = vulkanDevices.getOrElse(settings!!.vulkanDevice) { "CPU" },
                             onValueChange = {},
                             readOnly = true,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },

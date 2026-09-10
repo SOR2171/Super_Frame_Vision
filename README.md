@@ -18,8 +18,8 @@ zh | [en](./README_en.md)
 
 这是一个 Kotlin 多平台项目，目标平台为桌面端（JVM）。
 
-本项目的目的是提供一个多平台的，基于 [
-`FFmpeg Kit`](https://github.com/akashskypatel/ffmpeg-kit-builders)
+本项目的目的是提供一个多平台的，基于 
+[`FFmpeg Kit`](https://github.com/akashskypatel/ffmpeg-kit-builders)
 和 [`NCNN`](https://github.com/Tencent/ncnn) 的超分插帧方案。并尽可能地提供更多的选项与好看易读的 UI。
 
 ## 支持的平台
