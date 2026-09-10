@@ -22,6 +22,8 @@ zh | [en](./README_en.md)
 [`FFmpeg Kit`](https://github.com/akashskypatel/ffmpeg-kit-builders)
 和 [`NCNN`](https://github.com/Tencent/ncnn) 的超分插帧方案。并尽可能地提供更多的选项与好看易读的 UI。
 
+内含一种封装 NCNN 库，并实现模型加载，分 tile 推理，协程运行的方案。
+
 ## 支持的平台
 
 |         | X64 | Arm64 |
@@ -40,6 +42,8 @@ zh | [en](./README_en.md)
 
 [RealESRGAN_x4plus_anime](https://huggingface.co/mhmtaufiq/realesrgan-onnx/tree/main)
 （还没用上）
+
+参数均为 `inputshape=[1,6,1024,1024],[1,1,1,1]`，且使用 `ncnnoptimize` 进行16位量化。
 
 ## 如何运行
 

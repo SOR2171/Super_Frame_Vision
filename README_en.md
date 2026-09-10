@@ -6,6 +6,9 @@ scheme based on
 and [`NCNN`](https://github.com/Tencent/ncnn).
 It also aims to offer as many options as possible and a visually appealing and easy-to-read UI.
 
+It includes a solution that encapsulates the NCNN library and implements model loading, tiled
+inference, and coroutine-based execution.
+
 ## Supported Platforms
 
 |         | X64 | Arm64 |
@@ -24,6 +27,9 @@ I used the following ONNX model to generate the NCNN model:
 
 [Real-ESRGAN_x4plus_anime](https://huggingface.co/mhmtaufiq/realesrgan-onnx/tree/main)
 (not yet)
+
+The parameters are `inputshape=[1,6,1024,1024],[1,1,1,1]`, and 16-bit quantization is performed
+using `ncnnoptimize`.
 
 ## How to run
 
