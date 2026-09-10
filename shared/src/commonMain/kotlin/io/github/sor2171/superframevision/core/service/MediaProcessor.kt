@@ -269,18 +269,32 @@ class MediaProcessor(
         options: Map<String, String> = defaultEncodingOptions,
         finishDirLambda: MediaProcessor.() -> Path
     ): Boolean {
-        println("开始编码为 MP4：$mp4OutputPath")
+        require(frameRate.isFinite() && frameRate > 0.0) {
+            "frameRate must be finite and greater than 0"
+        }
+
+        println("开始编码为 MP4，并复制原视频音轨：$mp4OutputPath")
+
         val finishDir = finishDirLambda(this)
         val optStr = options.entries.joinToString(" ") { "${it.key} ${it.value}" }
-        val success = FFmpegRunner.execute(
+
+        val result = FFmpegRunner.execute(
+            "-y",
             "-framerate $frameRate",
+            "-start_number 1",
             "-i",
             quotePath(finishDir / "%06d.jpg"),
+            "-i",
+            quotePath(sourcePath),
+            "-map 0:v:0",
+            "-map 1:a?",
             optStr,
-            quotePath(mp4OutputPath),
-            "-y"
+            "-c:a copy",
+
+            quotePath(mp4OutputPath)
         )
-        return !success.isNullOrBlank()
+
+        return !result.isNullOrBlank()
     }
 
     private fun quotePath(path: Path): String = "\"$path\""
