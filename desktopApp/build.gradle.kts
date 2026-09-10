@@ -1,4 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import java.time.LocalDateTime
 
 plugins {
     alias(libs.plugins.kotlinJvm)
@@ -16,7 +17,16 @@ dependencies {
     implementation(libs.compose.uiToolingPreview)
 }
 
-val appVersion = System.getenv("TAG")?.removePrefix("v") ?: "1.0.0"
+val appVersion = System.getenv("TAG")?.removePrefix("v")
+    ?: run {
+        val now = LocalDateTime.now()
+
+        val major = now.year - 2000
+        val minor = now.monthValue
+        val build = now.dayOfMonth * 100 + now.hour
+
+        "$major.$minor.$build"
+    }
 val appName = "Super Frame Vision"
 val packageName = "io.github.sor2171.superframevision"
 
