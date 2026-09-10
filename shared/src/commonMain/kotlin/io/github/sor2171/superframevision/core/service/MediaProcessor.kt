@@ -290,7 +290,6 @@ class MediaProcessor(
             "-map 1:a?",
             optStr,
             "-c:a copy",
-
             quotePath(mp4OutputPath)
         )
 
