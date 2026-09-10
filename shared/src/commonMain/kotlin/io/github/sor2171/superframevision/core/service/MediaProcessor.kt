@@ -170,6 +170,7 @@ class MediaProcessor(
 
     suspend fun processSuperResolution(
         model: Models,
+        deviceIndex: Int,
         thread: Int = 4,
         originFrameDir: Path = this.originFrameDir,
         upscaledFrameDir: Path = this.upscaledFrameDir
@@ -195,6 +196,8 @@ class MediaProcessor(
                 NcnnRunner.createSession(
                     size,
                     model,
+                    times = 2,
+                    deviceIndex,
                 ).use { runner ->
                     paths.forEach { path ->
                         val savePath =
@@ -211,6 +214,7 @@ class MediaProcessor(
 
     suspend fun inferLeftFrames(
         model: Models,
+        deviceIndex: Int,
         thread: Int = 4
     ) = coroutineScope {
         println("准备执行插帧，线程数：$thread")
@@ -237,6 +241,8 @@ class MediaProcessor(
                 NcnnRunner.createSession(
                     size,
                     model,
+                    times = 2,
+                    deviceIndex,
                 ).use { runner ->
                     pairs.forEach { (img0, img1) ->
                         val idx = img0.name

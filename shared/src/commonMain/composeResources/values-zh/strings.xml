@@ -41,10 +41,10 @@
 
     <string name="settings_title_upscale_threads">超分线程数</string>
     <string name="settings_title_infer_threads">插帧线程数</string>
-    <string name="settings_tooltip_threads">线程越多，设备要求越高，速度越快，质量不变</string>
+    <string name="settings_tooltip_threads">线程越多，设备要求越高，速度越快，质量不变。</string>
 
     <string name="settings_title_ai_device">AI计算设备</string>
-    <string name="settings_tooltip_ai_device">0号是CPU，很慢的，而且可能无法运行。</string>
+    <string name="settings_tooltip_ai_device">有些时候AUTO会出问题，有些时候会出现两个核显</string>
 
     <string name="settings_cd_reset">重置</string>
     <string name="settings_cd_save">保存</string>
@@ -55,5 +55,6 @@
     <string name="info_bilibili">关注我的B站</string>
     <string name="info_qq_group_slv">加入QQ群\n虽然它不是我的</string>
     <string name="info_qq_group">加入我的QQ群</string>
+    <string name="thank_supports">感谢以下朋友们的开发支持：</string>
     <string name="info_donor">感谢您的支持！</string>
 </resources>

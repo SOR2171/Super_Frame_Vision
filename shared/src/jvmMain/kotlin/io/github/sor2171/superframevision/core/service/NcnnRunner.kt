@@ -21,7 +21,7 @@ actual class NcnnRunner(
     private val sourceSize: Pair<Int, Int>,
     private val modelNetPtr: Pointer,
     private val optionPtr: Pointer,
-    private val pipelineCachePtr: Pointer,
+    private val pipelineCachePtr: Pointer?,
     private val times: Int
 ) : AutoCloseable {
     private val elemsize = 4L
@@ -31,7 +31,7 @@ actual class NcnnRunner(
         private val cLib = NcnnLibrary.INSTANCE
 
         actual fun listVulkanDevices(): MutableList<String> {
-            return VulkanDeviceDetector.detect().map{ it.name }.toMutableList()
+            return VulkanDeviceDetector.detect().map { it.name }.toMutableList()
         }
 
         actual suspend fun createSession(
@@ -53,17 +53,11 @@ actual class NcnnRunner(
                 cLib.ncnn_option_set_num_threads(option, 1)
                 cLib.ncnn_option_set_use_vulkan_compute(option, 1)
 
-                if (model.is16) {
-                    cLib.ncnn_option_set_use_fp16_packed(option, 1)
-                    cLib.ncnn_option_set_use_fp16_storage(option, 1)
-                    cLib.ncnn_option_set_use_fp16_arithmetic(option, 1)
-                    cLib.ncnn_option_set_use_packing_layout(option, 1)
-                } else {
-                    cLib.ncnn_option_set_use_fp16_packed(option, 0)
-                    cLib.ncnn_option_set_use_fp16_storage(option, 0)
-                    cLib.ncnn_option_set_use_fp16_arithmetic(option, 0)
-                    cLib.ncnn_option_set_use_packing_layout(option, 0)
-                }
+                val fp16Flag = if (model.is16) 1 else 0
+                cLib.ncnn_option_set_use_fp16_packed(option, fp16Flag)
+                cLib.ncnn_option_set_use_fp16_storage(option, fp16Flag)
+                cLib.ncnn_option_set_use_fp16_arithmetic(option, fp16Flag)
+                cLib.ncnn_option_set_use_packing_layout(option, fp16Flag)
 
                 pipelineCache = cLib.ncnn_pipelinecache_create(deviceIndex)
                 check(pipelineCache != Pointer.NULL) { "Failed to create ncnn pipeline cache" }
@@ -78,9 +72,8 @@ actual class NcnnRunner(
 
                 val paramResult = cLib.ncnn_net_load_param_memory(network, modelParam)
                 require(paramResult == 0L) { "Failed to load model param: $paramResult" }
-
-
-                cLib.ncnn_net_load_model_memory(network, modelBin)
+                val modelResult = cLib.ncnn_net_load_model_memory(network, modelBin)
+                logger.debug("load model size: $modelResult")
 
                 val runner = NcnnRunner(
                     sourceSize = sourceSize,
@@ -95,15 +88,11 @@ actual class NcnnRunner(
 
                 return runner
             } finally {
-                if (network != null &&
-                    network != Pointer.NULL
-                ) {
+                if (network != null && network != Pointer.NULL) {
                     cLib.ncnn_net_destroy(network)
                 }
 
-                if (pipelineCache != null &&
-                    pipelineCache != Pointer.NULL
-                ) {
+                if (pipelineCache != null && pipelineCache != Pointer.NULL) {
                     cLib.ncnn_pipelinecache_clear(pipelineCache)
                     cLib.ncnn_pipelinecache_destroy(pipelineCache)
                 }
@@ -307,7 +296,7 @@ actual class NcnnRunner(
 
                     currentTileIndex++
 
-                    logger.info(
+                    logger.debug(
                         "RIFE Tile {}/{}: input=({},{} {}x{}), tensor={}x{}",
                         currentTileIndex,
                         totalTileCount,
@@ -825,7 +814,7 @@ actual class NcnnRunner(
 
                     currentTileIndex++
 
-                    logger.info(
+                    logger.debug(
                         "Upscale Tile {}/{}: input=({},{} {}x{}), " +
                                 "core=({},{} {}x{})",
                         currentTileIndex,

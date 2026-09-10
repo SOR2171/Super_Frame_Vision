@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.sor2171.superframevision.core.utils.Const
@@ -39,6 +40,7 @@ import superframevision.shared.generated.resources.info_github
 import superframevision.shared.generated.resources.info_qq_group
 import superframevision.shared.generated.resources.info_qq_group_slv
 import superframevision.shared.generated.resources.qq
+import superframevision.shared.generated.resources.thank_supports
 
 @Composable
 fun InfoScreen() {
@@ -108,7 +110,7 @@ fun InfoScreen() {
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         LinkCard(
                             imageRes = Res.drawable.github,
@@ -143,34 +145,68 @@ fun InfoScreen() {
                 Box(
                     modifier = Modifier.weight(1f)
                 ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
                         ) {
-                            Image(
-                                painter = painterResource(Res.drawable.donor),
-                                contentDescription = null
-                            )
-                            Row(
+                            Column(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    modifier = Modifier.padding(16.dp),
-                                    text = stringResource(Res.string.info_donor),
-                                    style = MaterialTheme.typography.titleLarge
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    text = stringResource(Res.string.thank_supports),
+                                    style = MaterialTheme.typography.titleMedium
                                 )
-                                Icon(
-                                    imageVector = Icons.Default.Favorite,
-                                    contentDescription = null,
-                                    tint = Color(0xFFE53935)
+
+                                @Suppress("SpellCheckingInspection")
+                                Text(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    text = "MC_QiLiu",
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.bodyMedium
                                 )
+                            }
+                        }
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Image(
+                                    painter = painterResource(Res.drawable.donor),
+                                    contentDescription = null
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        modifier = Modifier.padding(16.dp),
+                                        text = stringResource(Res.string.info_donor),
+                                        style = MaterialTheme.typography.titleLarge
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Favorite,
+                                        contentDescription = null,
+                                        tint = Color(0xFFE53935)
+                                    )
+                                }
                             }
                         }
                     }

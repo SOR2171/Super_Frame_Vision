@@ -35,4 +35,14 @@ class NcnnTest {
             Models.REAL_A3_2,
         ).use { it.upscale(inputPNGList[0], outputFolder / "REAL_ncnn.jpg") }
     }
+
+    @Test
+    fun runCPU() = runBlocking {
+        NcnnRunner.createSession(
+            1920 to 1080,
+            Models.REAL_A3_2,
+            2,
+            -1
+        ).use { it.upscale(inputPNGList[0], outputFolder / "REAL_ncnn.jpg") }
+    }
 }

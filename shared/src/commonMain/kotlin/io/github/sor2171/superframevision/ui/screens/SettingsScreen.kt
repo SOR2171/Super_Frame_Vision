@@ -226,20 +226,25 @@ fun SettingsScreen(
                     tooltipText = stringResource(Res.string.settings_tooltip_ai_device)
                 ) {
                     var expanded by remember { mutableStateOf(false) }
-                    val vulkanDevices = NcnnRunner.listVulkanDevices()
-                    vulkanDevices[0] = "CPU"
+                    val vulkanDevices = NcnnRunner.listVulkanDevices().let {
+                        return@let if (it.isEmpty()) mutableListOf("AUTO")
+                        else {
+                            it.addLast("AUTO")
+                            it
+                        }
+                    }
 
                     ExposedDropdownMenuBox(
                         expanded = expanded,
                         onExpandedChange = { expanded = !expanded }
                     ) {
                         OutlinedTextField(
-                            value = vulkanDevices.getOrElse(settings!!.vulkanDevice) { "" },
+                            value = vulkanDevices.getOrElse(settings!!.vulkanDevice) { "AUTO" },
                             onValueChange = {},
                             readOnly = true,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                             modifier = Modifier
-                                .width(160.dp)
+                                .width(320.dp)
                                 .menuAnchor(
                                     ExposedDropdownMenuAnchorType.PrimaryNotEditable,
                                     true
@@ -255,6 +260,8 @@ fun SettingsScreen(
                                 DropdownMenuItem(
                                     text = { Text(text = "$index: $device") },
                                     onClick = {
+                                        var index = index
+                                        if (index == vulkanDevices.size - 1) index = -1
                                         settings = settings?.copy(vulkanDevice = index)
                                         expanded = false
                                     }

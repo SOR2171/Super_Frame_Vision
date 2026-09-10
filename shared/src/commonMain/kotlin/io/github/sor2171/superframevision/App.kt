@@ -126,6 +126,7 @@ fun App() {
                                 ProcessType.ImageSR -> {
                                     mediaProcessor.processSuperResolution(
                                         Models.REAL_A3_2,
+                                        usableSettings().vulkanDevice,
                                         1,
                                         queueFile.path,
                                         queueFile.path.parent!!
@@ -137,6 +138,7 @@ fun App() {
                                     { "Failed to extract frames" }
                                     mediaProcessor.processSuperResolution(
                                         Models.REAL_A3_2,
+                                        usableSettings().vulkanDevice,
                                         usableSettings().upscaleThread
                                     )
                                     mediaProcessor.encodeToMp4 { this.upscaledFrameDir }
@@ -151,6 +153,7 @@ fun App() {
                                     { "Failed to renumber frames" }
                                     mediaProcessor.inferLeftFrames(
                                         Models.RIFE4_26,
+                                        usableSettings().vulkanDevice,
                                         usableSettings().inferThread
                                     )
                                     mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
@@ -163,12 +166,15 @@ fun App() {
                                     { "Failed to extract frames" }
                                     mediaProcessor.processSuperResolution(
                                         Models.REAL_A3_2,
+                                        usableSettings().vulkanDevice,
                                         usableSettings().upscaleThread
                                     )
                                     check(mediaProcessor.renumberToOdd { this.upscaledFrameDir })
                                     { "Failed to renumber frames" }
                                     mediaProcessor.inferLeftFrames(
-                                        Models.RIFE4_26, usableSettings().inferThread
+                                        Models.RIFE4_26,
+                                        usableSettings().vulkanDevice,
+                                        usableSettings().inferThread
                                     )
                                     mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
                                 }
