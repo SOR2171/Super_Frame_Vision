@@ -4,12 +4,12 @@
 
 **Super Frame Vision**
 
-![](https://img.shields.io/badge/Linux-FCC624?style=&logo=linux&logoColor=black)
-![](https://img.shields.io/badge/Windows-10/11-2376bc?style=flat&logo=windows&logoColor=ffffff)
-![](https://img.shields.io/badge/MacOS-333?style=flat&logo=apple&logoColor=ffffff)
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=&logo=linux&logoColor=black)
+![Win](https://img.shields.io/badge/Windows-10/11-2376bc?style=flat&logo=windows&logoColor=ffffff)
+![macOS](https://img.shields.io/badge/MacOS-333?style=flat&logo=apple&logoColor=ffffff)
 
-![](https://img.shields.io/github/license/sor2171/Super_Frame_Vision.svg)
-![](https://img.shields.io/badge/Kotlin_Multiplatform-7F52FF?style=flat&logo=kotlin&logoColor=white)
+![License](https://img.shields.io/github/license/sor2171/Super_Frame_Vision.svg)
+![KMP](https://img.shields.io/badge/Kotlin_Multiplatform-7F52FF?style=flat&logo=kotlin&logoColor=white)
 
 zh | [en](./README_en.md)
 
@@ -19,7 +19,7 @@ zh | [en](./README_en.md)
 这是一个 Kotlin 多平台项目，目标平台为桌面端（JVM）。
 
 本项目的目的是提供一个多平台的，基于 
-[`FFmpeg Kit`](https://github.com/akashskypatel/ffmpeg-kit-builders)
+[`FFmpeg Kit KMP`](https://github.com/SOR2171/FFmpeg-Kit_KMP) (GPL-3.0)
 和 [`NCNN`](https://github.com/Tencent/ncnn) 的超分插帧方案。并尽可能地提供更多的选项与好看易读的 UI。
 
 内含一种封装 NCNN 库，并实现模型加载，分 tile 推理，协程运行的方案。
