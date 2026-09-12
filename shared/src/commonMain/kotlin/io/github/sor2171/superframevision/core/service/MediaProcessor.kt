@@ -5,43 +5,52 @@ import io.github.sor2171.superframevision.core.entity.Models
 import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.isFile
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import okio.Path
 
-/**
- * 1. 将输入视频的所有帧提取为 `%06d.jpg`
- * 2. 将所有帧重命名为 `(2n-1)` 形式的奇数编号
- * 3. 检查视频帧编号是否从 1 开始且连续
- * 4. 使用 concat 文件列表将帧序列压制为 MP4
- *
- * @param sourcePath  输入视频路径
- * @param tmpDir     工作的缓存目录
- */
-class MediaProcessor(
+class MediaProcessor private constructor(
     private val sourcePath: Path,
-    private val tmpDir: Path,
+    private val outputPath: Path,
+    tmpDir: Path
 ) : AutoCloseable {
-    private val videoName = sourcePath.name.substringBefore(".")
-    private val mp4OutputPath: Path
-        get() = sourcePath.parent!! / "${videoName}_processed.mp4"
+    private val processOutputPath: Path = sourcePath.parent!! / "processed.mp4"
+    val originFrameDir: Path = tmpDir / Const.ORIGIN_FRAME_DIR
+    val upscaledFrameDir: Path = tmpDir / Const.UPSCALED_FRAME_DIR
+    val inferredFrameDir: Path = tmpDir / Const.INFERRED_FRAME_DIR
 
-    val originFrameDir = tmpDir / Const.ORIGIN_FRAME_DIR
-    val upscaledFrameDir = tmpDir / Const.UPSCALED_FRAME_DIR
-    val inferredFrameDir = tmpDir / Const.INFERRED_FRAME_DIR
+    companion object {
+        /** 默认编码参数（高质量、兼容性好） */
+        val defaultEncodingOptions = mapOf(
+            "-c:v" to "libx265",
+            "-crf" to "14",
+            "-pix_fmt" to "yuv420p",
+            "-preset" to "medium"
+        )
+
+        /**
+         * @param inputPath  输入视频路径
+         * @param tmpDir     工作的缓存目录
+         */
+        suspend fun createSession(
+            inputPath: Path,
+            tmpDir: Path,
+        ): MediaProcessor {
+            val sourcePath = tmpDir / ("input_video." + inputPath.name.substringAfter("."))
+            FileUtils.copy(inputPath, sourcePath)
+            return MediaProcessor(
+                sourcePath,
+                inputPath.parent!! / inputPath.name.substringBefore("."),
+                tmpDir
+            )
+        }
+    }
 
     override fun close() {
         try {
-            FileUtils.list(originFrameDir).forEach { file ->
-                FileUtils.delete(file)
-            }
-            FileUtils.list(upscaledFrameDir).forEach { file ->
-                FileUtils.delete(file)
-            }
-            FileUtils.list(inferredFrameDir).forEach { file ->
-                FileUtils.delete(file)
-            }
+            FileUtils.move(processOutputPath, outputPath)
+            FileUtils.clearTmp()
         } catch (e: Exception) {
             println("Error occurred while cleaning directories: ${e.message}")
         }
@@ -273,7 +282,7 @@ class MediaProcessor(
             "frameRate must be finite and greater than 0"
         }
 
-        println("开始编码为 MP4，并复制原视频音轨：$mp4OutputPath")
+        println("开始编码为 MP4，并复制原视频音轨：$processOutputPath")
 
         val finishDir = finishDirLambda(this)
         val optStr = options.entries.joinToString(" ") { "${it.key} ${it.value}" }
@@ -290,7 +299,7 @@ class MediaProcessor(
             "-map 1:a?",
             optStr,
             "-c:a copy",
-            quotePath(mp4OutputPath)
+            quotePath(processOutputPath)
         )
 
         return !result.isNullOrBlank()
@@ -300,15 +309,5 @@ class MediaProcessor(
 
     private fun clearDirectory(dir: Path) {
         FileUtils.list(dir).forEach { FileUtils.delete(it) }
-    }
-
-    companion object {
-        /** 默认编码参数（高质量、兼容性好） */
-        val defaultEncodingOptions = mapOf(
-            "-c:v" to "libx265",
-            "-crf" to "14",
-            "-pix_fmt" to "yuv420p",
-            "-preset" to "medium"
-        )
     }
 }

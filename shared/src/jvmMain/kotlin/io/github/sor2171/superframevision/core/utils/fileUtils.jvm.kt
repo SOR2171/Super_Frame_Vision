@@ -87,8 +87,18 @@ actual object FileUtils {
                     writeUtf8(content)
                 }
                 fileSystem.atomicMove(tempPath, targetPath)
+            } catch (_: Exception) {
             } finally {
                 fileSystem.delete(tempPath, mustExist = false)
+            }
+        }
+    }
+
+    actual suspend fun copy(sourcePath: Path, targetPath: Path) {
+        withContext(Dispatchers.IO) {
+            try {
+                fileSystem.copy(sourcePath, targetPath)
+            } catch (_: Exception) {
             }
         }
     }
@@ -110,7 +120,7 @@ actual object FileUtils {
     }
 
     actual fun list(targetPath: Path): List<Path> {
-        FileUtils.createDirectories(targetPath)
+        createDirectories(targetPath)
         return fileSystem.list(targetPath)
     }
 
@@ -139,4 +149,17 @@ actual object FileUtils {
 
     actual fun getOutputStream(vararg folders: String, toUse: (BufferedSink) -> Unit) =
         getOutputStream(resolveTargetPath(*folders), toUse)
+
+    actual fun clearTmp() {
+        list(basicTmpDir).forEach { folder ->
+            try {
+                if (basicTmpDir.isFile()) delete(basicTmpDir)
+                else list(folder).forEach { file ->
+                    delete(file)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 }

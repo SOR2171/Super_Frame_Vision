@@ -341,7 +341,7 @@ actual class NcnnRunner(
                 safePixelCount(imageWidth, imageHeight)
             )
 
-            logger.info(
+            logger.debug(
                 "RIFE image={}x{}, constantTile={}x{}, grid={}x{}, total={}, pad={}",
                 imageWidth,
                 imageHeight,
@@ -412,7 +412,7 @@ actual class NcnnRunner(
 
                     currentTileIndex++
 
-                    logger.info(
+                    logger.debug(
                         "RIFE Tile {}/{}: input=({},{} {}x{}), tensor={}x{}",
                         currentTileIndex,
                         totalTileCount,
@@ -873,7 +873,7 @@ actual class NcnnRunner(
 
             val totalTileCount = totalTileCountLong.toInt()
 
-            logger.info(
+            logger.debug(
                 "Upscale input={}x{}, tileMaximum={}x{}, padding={}, " +
                         "coreStep={}x{}, grid={}x{}, total={}",
                 imageWidth,
@@ -930,7 +930,7 @@ actual class NcnnRunner(
 
                     currentTileIndex++
 
-                    logger.info(
+                    logger.debug(
                         "Upscale Tile {}/{}: input=({},{} {}x{}), core=({},{} {}x{})",
                         currentTileIndex,
                         totalTileCount,
@@ -982,12 +982,12 @@ actual class NcnnRunner(
                                 )
                             )
 
-                            logger.info(
+                            logger.debug(
                                 "Detected upscale model scale: x{}",
                                 scale
                             )
 
-                            logger.info(
+                            logger.debug(
                                 "Upscale final output: {}x{}",
                                 outputWidth,
                                 outputHeight

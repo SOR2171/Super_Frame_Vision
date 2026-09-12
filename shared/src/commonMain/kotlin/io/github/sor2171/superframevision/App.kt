@@ -27,7 +27,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,10 +64,9 @@ import kotlin.coroutines.cancellation.CancellationException
 @Preview
 fun App() {
     val coroutineScope = rememberCoroutineScope()
-    var currentScreen by rememberSaveable { mutableStateOf(Screens.Home) }
-    var chosenProcessType by rememberSaveable { mutableStateOf(ProcessType.VideoFI) }
-    var isProcessing by rememberSaveable { mutableStateOf(false) }
-
+    var currentScreen by remember { mutableStateOf(Screens.Home) }
+    var chosenProcessType by remember { mutableStateOf(ProcessType.VideoFI) }
+    var isProcessing by remember { mutableStateOf(false) }
     val queueFileList = remember { mutableStateListOf<QueueFile>() }
 
     val settings by SettingsRepository.settings.collectAsState()
@@ -118,7 +116,7 @@ fun App() {
                     queueFile.isProcessing.value = true
 
                     try {
-                        MediaProcessor(
+                        MediaProcessor.createSession(
                             queueFile.path, FileUtils.basicTmpDir
                         ).use { mediaProcessor ->
                             println("开始处理：$chosenProcessType ${queueFile.path}")

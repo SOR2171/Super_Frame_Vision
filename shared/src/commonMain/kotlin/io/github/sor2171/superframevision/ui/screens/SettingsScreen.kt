@@ -96,15 +96,7 @@ fun SettingsScreen(
                 ) {
                     Button(
                         onClick = {
-                            FileUtils.list(FileUtils.basicTmpDir).forEach { folder ->
-                                try {
-                                    FileUtils.list(folder).forEach { file ->
-                                        FileUtils.delete(file)
-                                    }
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }
+                            FileUtils.clearTmp()
                         }
                     ) {
                         Icon(

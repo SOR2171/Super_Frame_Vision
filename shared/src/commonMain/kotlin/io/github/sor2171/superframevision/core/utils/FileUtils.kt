@@ -25,6 +25,7 @@ expect object FileUtils {
 
     suspend fun read(targetPath: Path): ByteArray?
     suspend fun write(content: String, targetPath: Path)
+    suspend fun copy(sourcePath: Path, targetPath: Path)
     fun delete(targetPath: Path)
     fun createDirectories(targetPath: Path)
     fun list(targetPath: Path): List<Path>
@@ -38,6 +39,8 @@ expect object FileUtils {
     fun list(vararg folders: String): List<Path>
     fun move(sourcePath: Path, vararg folders: String)
     fun getOutputStream(vararg folders: String, toUse: (BufferedSink) -> Unit)
+
+    fun clearTmp()
 }
 
 fun resolveTargetPath(vararg folders: String): Path =
