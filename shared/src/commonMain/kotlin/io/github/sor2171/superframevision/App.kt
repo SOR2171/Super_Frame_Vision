@@ -33,14 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.materialkolor.rememberDynamicColorScheme
-import io.github.sor2171.superframevision.core.entity.Models
 import io.github.sor2171.superframevision.core.entity.ProcessType
 import io.github.sor2171.superframevision.core.entity.QueueFile
 import io.github.sor2171.superframevision.core.entity.Screens
 import io.github.sor2171.superframevision.core.entity.currentPlatform
-import io.github.sor2171.superframevision.core.service.MediaProcessor
+import io.github.sor2171.superframevision.core.service.ProcessLauncher
 import io.github.sor2171.superframevision.core.utils.Const
-import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.SettingsRepository
 import io.github.sor2171.superframevision.ui.screens.HomeScreen
 import io.github.sor2171.superframevision.ui.screens.InfoScreen
@@ -52,13 +50,8 @@ import io.github.vinceglb.filekit.dialogs.FileKitMode
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.dialogs.compose.rememberFileSaverLauncher
 import io.github.vinceglb.filekit.path
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.launch
 import okio.Path
 import okio.Path.Companion.toPath
-import kotlin.coroutines.cancellation.CancellationException
 
 @Composable
 @Preview
@@ -75,9 +68,18 @@ fun App() {
 
     val seedColor = Const.colorList[settings?.themeColor ?: 0].color
     val platform = currentPlatform()
-    var processJob: Job? = null
 
     fun usableSettings() = settings ?: SettingsRepository.OverallSettings.default
+
+    val processor = remember(coroutineScope, queueFileList) {
+        ProcessLauncher(
+            scope = coroutineScope,
+            queueFileList = queueFileList,
+            getSettings = ::usableSettings,
+            getProcessType = { chosenProcessType },
+            onProcessingStateChange = { isProcessing = it }
+        )
+    }
 
     LaunchedEffect(Unit) {
         SettingsRepository.load()
@@ -104,98 +106,9 @@ fun App() {
         }
     }
 
-
-    val processStart: () -> Unit = {
-        processJob = coroutineScope.launch(Dispatchers.Default) {
-            isProcessing = true
-            try {
-                while (queueFileList.isNotEmpty()) {
-                    ensureActive()
-
-                    val queueFile = queueFileList.first()
-                    queueFile.isProcessing.value = true
-
-                    try {
-                        MediaProcessor.createSession(
-                            queueFile.path, FileUtils.basicTmpDir
-                        ).use { mediaProcessor ->
-                            println("开始处理：$chosenProcessType ${queueFile.path}")
-                            when (chosenProcessType) {
-                                ProcessType.ImageSR -> {
-                                    mediaProcessor.processSuperResolution(
-                                        Models.REAL_A3_2,
-                                        usableSettings().vulkanDevice,
-                                        1,
-                                        queueFile.path,
-                                        queueFile.path.parent!!
-                                    )
-                                }
-
-                                ProcessType.VideoSR -> {
-                                    check(mediaProcessor.extractFrames())
-                                    { "Failed to extract frames" }
-                                    mediaProcessor.processSuperResolution(
-                                        Models.REAL_A3_2,
-                                        usableSettings().vulkanDevice,
-                                        usableSettings().upscaleThread
-                                    )
-                                    mediaProcessor.encodeToMp4 { this.upscaledFrameDir }
-                                }
-
-                                ProcessType.VideoFI -> {
-                                    val originalFrameRate = mediaProcessor.detectInputFrameRate()
-                                        ?: error("Failed to detect input frame rate")
-                                    check(mediaProcessor.extractFrames())
-                                    { "Failed to extract frames" }
-                                    check(mediaProcessor.renumberToOdd { this.originFrameDir })
-                                    { "Failed to renumber frames" }
-                                    mediaProcessor.inferLeftFrames(
-                                        Models.RIFE4_26,
-                                        usableSettings().vulkanDevice,
-                                        usableSettings().inferThread
-                                    )
-                                    mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
-                                }
-
-                                ProcessType.VideoSRFI -> {
-                                    val originalFrameRate = mediaProcessor.detectInputFrameRate()
-                                        ?: error("Failed to detect input frame rate")
-                                    check(mediaProcessor.extractFrames())
-                                    { "Failed to extract frames" }
-                                    mediaProcessor.processSuperResolution(
-                                        Models.REAL_A3_2,
-                                        usableSettings().vulkanDevice,
-                                        usableSettings().upscaleThread
-                                    )
-                                    check(mediaProcessor.renumberToOdd { this.upscaledFrameDir })
-                                    { "Failed to renumber frames" }
-                                    mediaProcessor.inferLeftFrames(
-                                        Models.RIFE4_26,
-                                        usableSettings().vulkanDevice,
-                                        usableSettings().inferThread
-                                    )
-                                    mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
-                                }
-                            }
-                        }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        println("Error processing file ${queueFile.path}: ${e.message}")
-                        e.printStackTrace()
-                    } finally {
-                        queueFile.isProcessing.value = false
-                        queueFileList.removeFirstOrNull()
-                    }
-                }
-            } finally {
-                isProcessing = false
-            }
-        }
-    }
-
     val colorScheme = rememberDynamicColorScheme(
-        seedColor = seedColor, isDark = isSystemInDarkTheme()
+        seedColor = seedColor,
+        isDark = isSystemInDarkTheme()
     )
 
     MaterialTheme(
@@ -240,8 +153,8 @@ fun App() {
                             addProcessQueue = { queueFileList.add(it) },
                             removeQueueFile = { queueFileList.remove(it) },
                             changeProcessType = { chosenProcessType = it },
-                            cancelJob = { processJob?.cancel() },
-                            processStart = processStart,
+                            cancelJob = processor::cancel,
+                            processStart = processor::start,
                             queueFileList = queueFileList,
                             filePickerLauncher = filePickerLauncher,
                             chosenProcessType = chosenProcessType,
@@ -249,7 +162,7 @@ fun App() {
                         )
 
                         Screens.Process -> ProcessScreen(
-                            cancelJob = { processJob?.cancel() },
+                            cancelJob = processor::cancel,
                             saverPickerLauncher = saverPickerLauncher,
                             isProcessing = isProcessing,
                             platform = platform,
