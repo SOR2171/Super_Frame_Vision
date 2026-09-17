@@ -7,10 +7,14 @@ import okio.Path.Companion.toPath
 import kotlin.test.Test
 
 class MediaProcessTest {
-    val mediaProcessor = MediaProcessor(
-        "D:\\Media\\Blender\\output\\meteor_Miku.mp4".toPath(),
-        "D:\\Media\\Blender\\output\\tmp".toPath()
-    )
+    val mediaProcessor by lazy {
+        runBlocking {
+            MediaProcessor.createSession(
+                "D:\\Media\\Blender\\output\\meteor_Miku.mp4".toPath(),
+                "D:\\Media\\Blender\\output\\tmp".toPath()
+            )
+        }
+    }
 
     @Test
     fun detectFPS() {

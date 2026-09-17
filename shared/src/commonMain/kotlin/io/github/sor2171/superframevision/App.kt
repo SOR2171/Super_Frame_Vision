@@ -66,10 +66,10 @@ fun App() {
     val settingsScreenScrollState = rememberScrollState()
     val consoleState = rememberConsoleState()
 
-    val seedColor = Const.colorList[settings?.themeColor ?: 0].color
-    val platform = currentPlatform()
-
     fun usableSettings() = settings ?: SettingsRepository.OverallSettings.default
+
+    val seedColor = Const.colorList[usableSettings().themeColor].color
+    val platform = currentPlatform()
 
     val processor = remember(coroutineScope, queueFileList) {
         ProcessLauncher(

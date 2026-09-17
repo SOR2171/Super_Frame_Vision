@@ -39,7 +39,8 @@ class ProcessLauncher(
 
                     try {
                         MediaProcessor.createSession(
-                            queueFile.path, FileUtils.basicTmpDir
+                            queueFile.path,
+                            FileUtils.basicTmpDir
                         ).use { mediaProcessor ->
                             val chosenProcessType = getProcessType()
                             val settings = getSettings()
