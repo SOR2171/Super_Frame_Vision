@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalAtomicApi::class)
+
 package io.github.sor2171.superframevision.core.service
 
 import io.github.sor2171.ffmpegkitkmp.FFmpegRunner
@@ -9,6 +11,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import okio.Path
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 class MediaProcessor private constructor(
     private val sourcePath: Path,
@@ -19,6 +23,23 @@ class MediaProcessor private constructor(
     val originFrameDir: Path = tmpDir / Const.ORIGIN_FRAME_DIR
     val upscaledFrameDir: Path = tmpDir / Const.UPSCALED_FRAME_DIR
     val inferredFrameDir: Path = tmpDir / Const.INFERRED_FRAME_DIR
+
+    sealed interface NcnnTask {
+        data class SuperResolution(
+            val inputPath: Path,
+            val outputPath: Path
+        ) : NcnnTask
+
+        data class FrameInterpolation(
+            val img0Path: Path,
+            val img1Path: Path,
+            val savePath: Path,
+            val timestep: Float = 0.5f
+        ) : NcnnTask
+    }
+
+    val ncnnTaskList: MutableList<NcnnTask> = mutableListOf()
+    private val taskIndex = AtomicInt(0)
 
     companion object {
         /** 默认编码参数（高质量、兼容性好） */
@@ -192,14 +213,21 @@ class MediaProcessor private constructor(
         val inputs =
             if (originFrameDir.isFile()) listOf(originFrameDir)
             else FileUtils.list(originFrameDir)
-        val workerCount = minOf(thread, inputs.size)
 
-        repeat(workerCount) { workerId ->
+        ncnnTaskList.clear()
+        inputs.forEach { path ->
+            val savePath =
+                if (originFrameDir.isFile())
+                    upscaledFrameDir / "${path.name.substringBeforeLast(".")}_SR.jpg"
+                else upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
+            ncnnTaskList.add(NcnnTask.SuperResolution(path, savePath))
+        }
+        taskIndex.store(0)
+
+        val workerCount = minOf(thread, ncnnTaskList.size)
+
+        repeat(workerCount) {
             launch(Dispatchers.Default) {
-                val start = inputs.size * workerId / workerCount
-                val end = inputs.size * (workerId + 1) / workerCount
-
-                val paths = inputs.subList(start, end)
                 val size = detectDimensions() ?: (1920 to 1080)
 
                 NcnnRunner.createSession(
@@ -208,16 +236,14 @@ class MediaProcessor private constructor(
                     times = 2,
                     deviceIndex,
                 ).use { runner ->
-                    paths.forEach { path ->
-                        val savePath =
-                            if (originFrameDir.isFile())
-                                upscaledFrameDir / "${path.name.substringBeforeLast(".")}_SR.jpg"
-                            else upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
-                        runner.upscale(path, savePath)
+                    while (true) {
+                        val index = taskIndex.fetchAndAdd(1)
+                        if (index >= ncnnTaskList.size) break
+                        val task = ncnnTaskList[index] as NcnnTask.SuperResolution
+                        runner.upscale(task.inputPath, task.outputPath)
                     }
                 }
             }
-
         }
     }
 
@@ -237,14 +263,23 @@ class MediaProcessor private constructor(
 
         FileUtils.createDirectories(inferredFrameDir)
 
-        val workerCount = minOf(thread, inputFrameList.size)
+        ncnnTaskList.clear()
+        inputFrameList.forEach { (img0, img1) ->
+            val idx = img0.name
+                .substringBefore(".")
+                .toInt()
 
-        repeat(workerCount) { workerId ->
+            val savePath =
+                inferredFrameDir / "${String.format("%06d", idx + 1)}.jpg"
+
+            ncnnTaskList.add(NcnnTask.FrameInterpolation(img0, img1, savePath))
+        }
+        taskIndex.store(0)
+
+        val workerCount = minOf(thread, ncnnTaskList.size)
+
+        repeat(workerCount) {
             launch(Dispatchers.Default) {
-                val start = inputFrameList.size * workerId / workerCount
-                val end = inputFrameList.size * (workerId + 1) / workerCount
-
-                val pairs = inputFrameList.subList(start, end)
                 val size = detectDimensions() ?: (1920 to 1080)
 
                 NcnnRunner.createSession(
@@ -253,19 +288,15 @@ class MediaProcessor private constructor(
                     times = 2,
                     deviceIndex,
                 ).use { runner ->
-                    pairs.forEach { (img0, img1) ->
-                        val idx = img0.name
-                            .substringBefore(".")
-                            .toInt()
-
-                        val savePath =
-                            inferredFrameDir / "${String.format("%06d", idx + 1)}.jpg"
-
+                    while (true) {
+                        val index = taskIndex.fetchAndAdd(1)
+                        if (index >= ncnnTaskList.size) break
+                        val task = ncnnTaskList[index] as NcnnTask.FrameInterpolation
                         runner.inferFrame(
-                            img0,
-                            img1,
-                            savePath,
-                            0.5f
+                            task.img0Path,
+                            task.img1Path,
+                            task.savePath,
+                            task.timestep
                         )
                     }
                 }
