@@ -162,6 +162,11 @@ class MediaProcessor private constructor(
             return true
         }
 
+        if (checkOddContinuity()) {
+            println("帧序列已就绪于 $inferredFrameDir，跳过提取")
+            return true
+        }
+
         println("提取帧序列至 $originFrameDir")
         clearDirectory(originFrameDir)
 
@@ -200,12 +205,15 @@ class MediaProcessor private constructor(
             it.name.removeSuffix(".jpg").toIntOrNull()?.let { num -> num to it }
         }.sortedBy { it.first }
 
-        var idx = 1
-        for ((_, file) in sorted) {
-            val newNum = 2 * idx - 1
+        for ((num, file) in sorted) {
+            val newNum = 2 * num - 1
             val newName = String.format("%06d.jpg", newNum)
-            FileUtils.move(file, inferredFrameDir / newName)
-            idx++
+            val dest = inferredFrameDir / newName
+            if (!dest.isFile()) {
+                FileUtils.move(file, dest)
+            } else {
+                FileUtils.delete(file)
+            }
         }
 
         return checkOddContinuity()
@@ -254,9 +262,16 @@ class MediaProcessor private constructor(
                 if (originFrameDir.isFile())
                     upscaledFrameDir / "${path.name.substringBeforeLast(".")}_SR.jpg"
                 else upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
-            if (!savePath.isFile() || (FileSystem.SYSTEM.metadataOrNull(savePath)?.size
-                    ?: 0L) == 0L
-            ) {
+
+            val num = path.name.substringBeforeLast(".").toIntOrNull()
+            val oddPathInInferred = if (num != null) {
+                inferredFrameDir / "${String.format("%06d", 2 * num - 1)}.jpg"
+            } else null
+
+            val isAlreadyDone = (savePath.isFile() && (FileSystem.SYSTEM.metadataOrNull(savePath)?.size ?: 0L) > 0L) ||
+                    (oddPathInInferred != null && oddPathInInferred.isFile() && (FileSystem.SYSTEM.metadataOrNull(oddPathInInferred)?.size ?: 0L) > 0L)
+
+            if (!isAlreadyDone) {
                 ncnnTaskList.add(NcnnTask.SuperResolution(path, savePath))
             }
         }

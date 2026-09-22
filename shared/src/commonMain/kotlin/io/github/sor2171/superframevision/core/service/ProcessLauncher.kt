@@ -38,7 +38,6 @@ class ProcessLauncher(
 
                     val queueFile = queueFileList.first()
                     queueFile.isProcessing.value = true
-                    var isCancelled = false
 
                     try {
                         val settings = getSettings()
@@ -92,7 +91,8 @@ class ProcessLauncher(
                                         settings.vulkanDevice,
                                         settings.upscaleThread
                                     )
-                                    mediaProcessor.encodeToMp4 { this.upscaledFrameDir }
+                                    check(mediaProcessor.encodeToMp4 { this.upscaledFrameDir })
+                                    { "Failed to encode MP4" }
                                 }
 
                                 ProcessType.VideoFI -> {
@@ -107,7 +107,8 @@ class ProcessLauncher(
                                         settings.vulkanDevice,
                                         settings.inferThread
                                     )
-                                    mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
+                                    check(mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir })
+                                    { "Failed to encode MP4" }
                                 }
 
                                 ProcessType.VideoSRFI -> {
@@ -127,23 +128,24 @@ class ProcessLauncher(
                                         settings.vulkanDevice,
                                         settings.inferThread
                                     )
-                                    mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
+                                    check(mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir })
+                                    { "Failed to encode MP4" }
                                 }
                             }
 
                             mediaProcessor.isSuccessful = true
                         }
+                        // finish process
+                        queueFileList.removeFirstOrNull()
                     } catch (e: CancellationException) {
-                        isCancelled = true
                         throw e
                     } catch (e: Exception) {
                         println("Error processing file ${queueFile.path}:${e.message}")
                         e.printStackTrace()
+                        // 发生异常时中断处理循环，保留当前文件在队列首位以便用户重试/恢复运行
+                        break
                     } finally {
                         queueFile.isProcessing.value = false
-                        if (!isCancelled) {
-                            queueFileList.removeFirstOrNull()
-                        }
                     }
                 }
             } finally {
