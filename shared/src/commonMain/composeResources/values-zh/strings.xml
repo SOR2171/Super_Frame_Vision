@@ -9,7 +9,7 @@
 
     <string name="choose_file_button">选择文件或拖拽至此</string>
     <string name="welcome_title">欢迎使用SFV：</string>
-    <string name="welcome_body">现在，先选择文件，再选择处理方法，\n最后点击开始，别忘了查看设置。</string>
+    <string name="welcome_body">现在，先选择文件，再选择处理方法，\n最后点击开始，别忘了查看设置。\n任务中断后可继续运行，即使文件改名也能自动识别原数据并继续。</string>
 
     <string name="image_sr">图片超分</string>
     <string name="video_sr">视频超分</string>
@@ -48,7 +48,7 @@
     <string name="settings_title_infer_threads">插帧线程数</string>
     <string name="settings_tooltip_threads">线程越多，设备要求越高，速度越快，质量不变。</string>
 
-    <string name="settings_title_ai_device">AI计算设备</string>
+    <string name="settings_title_ai_device">AI 计算设备</string>
     <string name="settings_tooltip_ai_device">有些时候AUTO会出问题，有些时候会出现两个核显</string>
 
     <string name="settings_cd_reset">重置</string>

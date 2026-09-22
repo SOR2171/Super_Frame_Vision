@@ -4,6 +4,9 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import io.github.sor2171.superframevision.core.entity.Models
 import io.github.sor2171.superframevision.core.entity.ProcessType
 import io.github.sor2171.superframevision.core.entity.QueueFile
+import io.github.sor2171.superframevision.core.utils.FileUtils
+import io.github.sor2171.superframevision.core.utils.isFile
+import io.github.sor2171.superframevision.core.utils.isSameFile
 import io.github.sor2171.superframevision.core.utils.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,12 +38,37 @@ class ProcessLauncher(
 
                     val queueFile = queueFileList.first()
                     queueFile.isProcessing.value = true
+                    var isCancelled = false
 
                     try {
                         val settings = getSettings()
+                        val tmpDir = settings.workingDir.getPath()
+
+                        val existingVideoInTmp = FileUtils.list(tmpDir).firstOrNull {
+                            it.name.startsWith("input_video.") && it.isFile()
+                        }
+
+                        if (existingVideoInTmp != null) {
+                            if (isSameFile(queueFile.path, existingVideoInTmp)) {
+                                println("检测到缓存中的文件与当前任务一致，继续使用原数据")
+                                val newExt = queueFile.path.name.substringAfter(".", "")
+                                val expectedName = if (newExt.isEmpty()) "input_video" else "input_video.$newExt"
+                                if (existingVideoInTmp.name != expectedName) {
+                                    val targetPath = tmpDir / expectedName
+                                    println("同步缓存文件名：${existingVideoInTmp.name} -> $expectedName")
+                                    FileUtils.move(existingVideoInTmp, targetPath)
+                                }
+                            } else {
+                                println("检测到缓存中的文件与当前任务不一致，清空 tmp 目录")
+                                FileUtils.clearTmp(tmpDir)
+                            }
+                        } else {
+                            FileUtils.clearTmp(tmpDir)
+                        }
+
                         MediaProcessor.createSession(
                             queueFile.path,
-                            settings.workingDir.getPath()
+                            tmpDir
                         ).use { mediaProcessor ->
                             val chosenProcessType = getProcessType()
                             println("开始处理：$chosenProcessType ${queueFile.path}")
@@ -102,15 +130,20 @@ class ProcessLauncher(
                                     mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
                                 }
                             }
+
+                            mediaProcessor.isSuccessful = true
                         }
                     } catch (e: CancellationException) {
+                        isCancelled = true
                         throw e
                     } catch (e: Exception) {
                         println("Error processing file ${queueFile.path}:${e.message}")
                         e.printStackTrace()
                     } finally {
                         queueFile.isProcessing.value = false
-                        queueFileList.removeFirstOrNull()
+                        if (!isCancelled) {
+                            queueFileList.removeFirstOrNull()
+                        }
                     }
                 }
             } finally {

@@ -7,9 +7,11 @@ import io.github.sor2171.superframevision.core.entity.Models
 import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.isFile
+import io.github.sor2171.superframevision.core.utils.isSameFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import okio.FileSystem
 import okio.Path
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -19,6 +21,7 @@ class MediaProcessor private constructor(
     private val outputPath: Path,
     private val tmpDir: Path
 ) : AutoCloseable {
+    var isSuccessful: Boolean = false
     private val processOutputPath: Path = sourcePath.parent!! / "processed.mp4"
     val originFrameDir: Path = tmpDir / Const.ORIGIN_FRAME_DIR
     val upscaledFrameDir: Path = tmpDir / Const.UPSCALED_FRAME_DIR
@@ -58,8 +61,13 @@ class MediaProcessor private constructor(
             inputPath: Path,
             tmpDir: Path,
         ): MediaProcessor {
-            val sourcePath = tmpDir / ("input_video." + inputPath.name.substringAfter("."))
-            FileUtils.copy(inputPath, sourcePath)
+            val ext = inputPath.name.substringAfter(".", "")
+            val sourcePath = if (ext.isEmpty()) tmpDir / "input_video"
+            else tmpDir / "input_video.$ext"
+
+            if (!sourcePath.isFile() || !isSameFile(inputPath, sourcePath)) {
+                FileUtils.copy(inputPath, sourcePath)
+            }
             return MediaProcessor(
                 sourcePath,
                 inputPath.parent!! / inputPath.name.substringBefore("."),
@@ -69,8 +77,14 @@ class MediaProcessor private constructor(
     }
 
     override fun close() {
+        if (!isSuccessful) {
+            println("任务被取消或未完成，保留缓存目录: $tmpDir")
+            return
+        }
         try {
-            FileUtils.move(processOutputPath, outputPath)
+            if (processOutputPath.isFile()) {
+                FileUtils.move(processOutputPath, outputPath)
+            }
             FileUtils.clearTmp(tmpDir)
         } catch (e: Exception) {
             println("Error occurred while cleaning directories: ${e.message}")
@@ -140,11 +154,18 @@ class MediaProcessor private constructor(
     }
 
     fun extractFrames(): Boolean {
-        println("提取帧序列至 $originFrameDir")
         FileUtils.createDirectories(originFrameDir)
+        val extractedMarker = originFrameDir / ".extracted"
+        val existingFrames = FileUtils.list(originFrameDir).filter { it.name.endsWith(".jpg") }
+        if (extractedMarker.isFile() && existingFrames.isNotEmpty()) {
+            println("帧序列已存在，跳过提取: $originFrameDir (${existingFrames.size} 帧)")
+            return true
+        }
+
+        println("提取帧序列至 $originFrameDir")
         clearDirectory(originFrameDir)
 
-        return !FFmpegRunner.execute(
+        val success = !FFmpegRunner.execute(
             "-hwaccel auto",
             "-i",
             quotePath(sourcePath),
@@ -154,17 +175,28 @@ class MediaProcessor private constructor(
             quotePath(originFrameDir / "%06d.jpg"),
             "-y"
         ).isNullOrBlank()
+
+        if (success) {
+            FileUtils.getOutputStream(extractedMarker) { }
+        }
+        return success
     }
 
     fun renumberToOdd(sourcePath: MediaProcessor.() -> Path): Boolean {
-        println("重新编号奇数帧至 $inferredFrameDir")
         val sourceDir = sourcePath()
         FileUtils.createDirectories(inferredFrameDir)
-        val allJpgs = FileUtils.list(sourceDir).filter { it.name.endsWith(".jpg") }
-        if (allJpgs.isEmpty()) return false
+        val allPictures = FileUtils.list(sourceDir).filter { it.name.endsWith(".jpg") }
+        if (allPictures.isEmpty()) {
+            if (checkOddContinuity()) {
+                println("奇数帧已存在于 $inferredFrameDir 且连续，跳过重新编号")
+                return true
+            }
+            return false
+        }
 
-        // 按数字排序
-        val sorted = allJpgs.mapNotNull {
+        println("重新编号奇数帧至 $inferredFrameDir")
+
+        val sorted = allPictures.mapNotNull {
             it.name.removeSuffix(".jpg").toIntOrNull()?.let { num -> num to it }
         }.sortedBy { it.first }
 
@@ -186,7 +218,9 @@ class MediaProcessor private constructor(
 
         val nums = files.mapNotNull {
             it.name.removeSuffix(".jpg").toIntOrNull()
-        }.sorted()
+        }.filter { it % 2 != 0 }.sorted()
+
+        if (nums.isEmpty()) return false
 
         for (i in nums.indices) {
             val expected = 2 * (i + 1) - 1
@@ -220,8 +254,14 @@ class MediaProcessor private constructor(
                 if (originFrameDir.isFile())
                     upscaledFrameDir / "${path.name.substringBeforeLast(".")}_SR.jpg"
                 else upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
-            ncnnTaskList.add(NcnnTask.SuperResolution(path, savePath))
+            if (!savePath.isFile() || (FileSystem.SYSTEM.metadataOrNull(savePath)?.size
+                    ?: 0L) == 0L
+            ) {
+                ncnnTaskList.add(NcnnTask.SuperResolution(path, savePath))
+            }
         }
+        println("超分辨率待处理任务数：${ncnnTaskList.size} / ${inputs.size}")
+        if (ncnnTaskList.isEmpty()) return@coroutineScope
         taskIndex.store(0)
 
         val workerCount = minOf(thread, ncnnTaskList.size)
@@ -255,10 +295,16 @@ class MediaProcessor private constructor(
         println("准备执行插帧，线程数：$thread")
         require(thread > 0) { "thread must be greater than 0" }
 
-        val inputJpgList = FileUtils.list(inferredFrameDir)
+        val allJpgList = FileUtils.list(inferredFrameDir).filter { it.name.endsWith(".jpg") }
+        val oddJpgList = allJpgList.filter {
+            val num = it.name.substringBeforeLast(".jpg").toIntOrNull()
+            num != null && num % 2 != 0
+        }.sortedBy {
+            it.name.substringBeforeLast(".jpg").toInt()
+        }
 
-        val inputFrameList = List(inputJpgList.size) { i ->
-            inputJpgList[i] to (inputJpgList.getOrNull(i + 1) ?: inputJpgList.last())
+        val inputFrameList = List(oddJpgList.size) { i ->
+            oddJpgList[i] to (oddJpgList.getOrNull(i + 1) ?: oddJpgList.last())
         }
 
         FileUtils.createDirectories(inferredFrameDir)
@@ -272,8 +318,14 @@ class MediaProcessor private constructor(
             val savePath =
                 inferredFrameDir / "${String.format("%06d", idx + 1)}.jpg"
 
-            ncnnTaskList.add(NcnnTask.FrameInterpolation(img0, img1, savePath))
+            if (!savePath.isFile() || (FileSystem.SYSTEM.metadataOrNull(savePath)?.size
+                    ?: 0L) == 0L
+            ) {
+                ncnnTaskList.add(NcnnTask.FrameInterpolation(img0, img1, savePath))
+            }
         }
+        println("插帧待处理任务数：${ncnnTaskList.size} / ${inputFrameList.size}")
+        if (ncnnTaskList.isEmpty()) return@coroutineScope
         taskIndex.store(0)
 
         val workerCount = minOf(thread, ncnnTaskList.size)

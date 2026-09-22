@@ -1,6 +1,7 @@
 package io.github.sor2171.superframevision.core.utils
 
 import io.github.sor2171.superframevision.core.utils.FileUtils.appDataPath
+import okio.Buffer
 import okio.BufferedSink
 import okio.FileSystem
 import okio.Path
@@ -49,4 +50,43 @@ fun resolveTargetPath(vararg folders: String): Path =
 fun Path.isFile(fileSystem: FileSystem = FileSystem.SYSTEM): Boolean {
     val metadata = fileSystem.metadataOrNull(this)
     return metadata?.isRegularFile == true
+}
+
+fun getFileHeadTailHash(
+    path: Path,
+    chunkSize: Long = 64 * 1024L,
+    fileSystem: FileSystem = FileSystem.SYSTEM
+): String? {
+    if (!path.isFile(fileSystem)) return null
+    return try {
+        fileSystem.openReadOnly(path).use { handle ->
+            val size = handle.size()
+            val buffer = Buffer()
+            if (size <= chunkSize * 2) {
+                handle.read(0L, buffer, size)
+            } else {
+                handle.read(0L, buffer, chunkSize)
+                handle.read(size - chunkSize, buffer, chunkSize)
+            }
+            buffer.readByteString().sha256().hex()
+        }
+    } catch (e: Exception) {
+        println("Error computing hash for $path: ${e.message}")
+        null
+    }
+}
+
+fun isSameFile(
+    file1: Path,
+    file2: Path,
+    chunkSize: Long = 64 * 1024L,
+    fileSystem: FileSystem = FileSystem.SYSTEM
+): Boolean {
+    val meta1 = fileSystem.metadataOrNull(file1) ?: return false
+    val meta2 = fileSystem.metadataOrNull(file2) ?: return false
+    if (!meta1.isRegularFile || !meta2.isRegularFile) return false
+    if (meta1.size != meta2.size) return false
+    val hash1 = getFileHeadTailHash(file1, chunkSize, fileSystem) ?: return false
+    val hash2 = getFileHeadTailHash(file2, chunkSize, fileSystem) ?: return false
+    return hash1 == hash2
 }
