@@ -40,7 +40,7 @@ expect object FileUtils {
     fun move(sourcePath: Path, vararg folders: String)
     fun getOutputStream(vararg folders: String, toUse: (BufferedSink) -> Unit)
 
-    fun clearTmp()
+    fun clearTmp(targetDir: Path = basicTmpDir)
 }
 
 fun resolveTargetPath(vararg folders: String): Path =

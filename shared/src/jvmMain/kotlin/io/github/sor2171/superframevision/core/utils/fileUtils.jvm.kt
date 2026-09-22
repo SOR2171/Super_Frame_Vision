@@ -150,12 +150,16 @@ actual object FileUtils {
     actual fun getOutputStream(vararg folders: String, toUse: (BufferedSink) -> Unit) =
         getOutputStream(resolveTargetPath(*folders), toUse)
 
-    actual fun clearTmp() {
-        list(basicTmpDir).forEach { folder ->
+    actual fun clearTmp(targetDir: Path) {
+        list(targetDir).forEach { item ->
             try {
-                if (basicTmpDir.isFile()) delete(basicTmpDir)
-                else list(folder).forEach { file ->
-                    delete(file)
+                if (item.isFile()) {
+                    delete(item)
+                } else {
+                    list(item).forEach { file ->
+                        delete(file)
+                    }
+                    delete(item)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

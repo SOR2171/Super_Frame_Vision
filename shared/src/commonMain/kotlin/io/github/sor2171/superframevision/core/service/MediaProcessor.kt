@@ -17,7 +17,7 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 class MediaProcessor private constructor(
     private val sourcePath: Path,
     private val outputPath: Path,
-    tmpDir: Path
+    private val tmpDir: Path
 ) : AutoCloseable {
     private val processOutputPath: Path = sourcePath.parent!! / "processed.mp4"
     val originFrameDir: Path = tmpDir / Const.ORIGIN_FRAME_DIR
@@ -71,7 +71,7 @@ class MediaProcessor private constructor(
     override fun close() {
         try {
             FileUtils.move(processOutputPath, outputPath)
-            FileUtils.clearTmp()
+            FileUtils.clearTmp(tmpDir)
         } catch (e: Exception) {
             println("Error occurred while cleaning directories: ${e.message}")
         }

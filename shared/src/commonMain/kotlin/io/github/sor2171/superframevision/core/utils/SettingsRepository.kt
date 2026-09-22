@@ -1,5 +1,6 @@
 package io.github.sor2171.superframevision.core.utils
 
+import io.github.sor2171.superframevision.core.entity.WorkingDirType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,7 +29,8 @@ object SettingsRepository {
         val upscaleThread: Int = 2,
         val inferThread: Int = 8,
 
-        val vulkanDevice: Int = 1
+        val vulkanDevice: Int = 1,
+        val workingDir: WorkingDirType = WorkingDirType.SystemTemp
     ) {
         companion object {
             val default: OverallSettings get() = OverallSettings()

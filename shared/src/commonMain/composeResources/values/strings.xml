@@ -31,6 +31,11 @@
 
     <string name="settings_sn">Settings</string>
 
+    <string name="settings_title_working_dir">Working Directory</string>
+    <string name="settings_tooltip_working_dir">Working directory used for caching extracted and processed frames. Default is system temporary directory.</string>
+    <string name="working_dir_system_temp">System Temporary Directory</string>
+    <string name="working_dir_install_temp">Application Installation Directory</string>
+
     <string name="settings_title_clear_cache">Clear Cache</string>
     <string name="settings_tooltip_clear_cache">Located in %1$s. Do not clear while processing files.</string>
     <string name="settings_cd_clear_cache">Clear cache</string>

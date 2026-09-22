@@ -28,17 +28,20 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.sor2171.superframevision.core.entity.WorkingDirType
 import io.github.sor2171.superframevision.core.service.NcnnRunner
 import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.FileUtils
@@ -55,10 +58,12 @@ import superframevision.shared.generated.resources.settings_title_clear_cache
 import superframevision.shared.generated.resources.settings_title_infer_threads
 import superframevision.shared.generated.resources.settings_title_theme_color
 import superframevision.shared.generated.resources.settings_title_upscale_threads
+import superframevision.shared.generated.resources.settings_title_working_dir
 import superframevision.shared.generated.resources.settings_tooltip_ai_device
 import superframevision.shared.generated.resources.settings_tooltip_clear_cache
 import superframevision.shared.generated.resources.settings_tooltip_theme_color
 import superframevision.shared.generated.resources.settings_tooltip_threads
+import superframevision.shared.generated.resources.settings_tooltip_working_dir
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,22 +92,76 @@ fun SettingsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
+                val currentWorkingDir = settings?.workingDir ?: WorkingDirType.SystemTemp
+                var workingDirExpanded by remember { mutableStateOf(false) }
+
                 SettingItem(
-                    title = stringResource(Res.string.settings_title_clear_cache),
-                    tooltipText = stringResource(
-                        Res.string.settings_tooltip_clear_cache,
-                        FileUtils.basicTmpDir
-                    )
+                    title = stringResource(Res.string.settings_title_working_dir),
+                    tooltipText = stringResource(Res.string.settings_tooltip_working_dir)
                 ) {
-                    Button(
-                        onClick = {
-                            FileUtils.clearTmp()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(Res.string.settings_cd_clear_cache)
+                    ExposedDropdownMenuBox(
+                        expanded = workingDirExpanded,
+                        onExpandedChange = { workingDirExpanded = !workingDirExpanded }) {
+                        OutlinedTextField(
+                            value = currentWorkingDir.label(),
+                            onValueChange = {},
+                            readOnly = true,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = workingDirExpanded) },
+                            modifier = Modifier.width(220.dp).menuAnchor(
+                                ExposedDropdownMenuAnchorType.PrimaryNotEditable, true
+                            ),
+                            singleLine = true
                         )
+
+                        ExposedDropdownMenu(
+                            expanded = workingDirExpanded,
+                            onDismissRequest = { workingDirExpanded = false }) {
+                            WorkingDirType.entries.forEach { dirType ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(
+                                                text = dirType.label(),
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                            Text(
+                                                text = dirType.getPath().toString(),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        settings = settings?.copy(workingDir = dirType)
+                                        workingDirExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                val currentWorkingDirPath = currentWorkingDir.getPath()
+                key(currentWorkingDirPath) {
+                    SettingItem(
+                        title = stringResource(Res.string.settings_title_clear_cache),
+                        tooltipText = stringResource(
+                            Res.string.settings_tooltip_clear_cache,
+                            currentWorkingDirPath.toString()
+                        )
+                    ) {
+                        Button(
+                            onClick = {
+                                FileUtils.clearTmp(currentWorkingDirPath)
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(Res.string.settings_cd_clear_cache)
+                            )
+                        }
                     }
                 }
             }

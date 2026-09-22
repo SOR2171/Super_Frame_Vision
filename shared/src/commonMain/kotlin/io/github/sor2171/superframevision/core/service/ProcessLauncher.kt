@@ -4,7 +4,6 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import io.github.sor2171.superframevision.core.entity.Models
 import io.github.sor2171.superframevision.core.entity.ProcessType
 import io.github.sor2171.superframevision.core.entity.QueueFile
-import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,12 +37,12 @@ class ProcessLauncher(
                     queueFile.isProcessing.value = true
 
                     try {
+                        val settings = getSettings()
                         MediaProcessor.createSession(
                             queueFile.path,
-                            FileUtils.basicTmpDir
+                            settings.workingDir.getPath()
                         ).use { mediaProcessor ->
                             val chosenProcessType = getProcessType()
-                            val settings = getSettings()
                             println("开始处理：$chosenProcessType ${queueFile.path}")
 
                             when (chosenProcessType) {

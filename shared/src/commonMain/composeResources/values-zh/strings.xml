@@ -32,6 +32,11 @@
 
     <string name="settings_sn">设置</string>
 
+    <string name="settings_title_working_dir">工作目录</string>
+    <string name="settings_tooltip_working_dir">提取和处理帧所使用的工作缓存目录。默认为系统临时目录。</string>
+    <string name="working_dir_system_temp">系统临时目录</string>
+    <string name="working_dir_install_temp">程序安装目录</string>
+
     <string name="settings_title_clear_cache">清空缓存</string>
     <string name="settings_tooltip_clear_cache">它在 %1$s，不要在处理文件时清理。</string>
     <string name="settings_cd_clear_cache">清空缓存</string>
