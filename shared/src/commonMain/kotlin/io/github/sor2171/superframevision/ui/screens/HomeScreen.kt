@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -152,31 +152,35 @@ fun HomeScreen(
                         .fillMaxSize()
                         .padding(16.dp)
                 ) {
-                    Image(
-                        modifier = Modifier
-                            .height(64.dp)
-                            .width(64.dp)
-                            .align(Alignment.End),
-                        painter = painterResource(Res.drawable.kmp),
-                        contentDescription = "Logo",
-                        alpha = 0.8f
-                    )
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(12.dp)
-                            .align(Alignment.Start),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalAlignment = Alignment.Start
+                    Box(
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        Text(
-                            text = stringResource(Res.string.welcome_title),
-                            style = MaterialTheme.typography.headlineMedium
+                        Image(
+                            modifier = Modifier
+                                .size(128.dp)
+                                .align(Alignment.TopEnd),
+                            painter = painterResource(Res.drawable.kmp),
+                            contentDescription = "Logo",
+                            alpha = 0.35f
                         )
-                        Text(
-                            text = stringResource(Res.string.welcome_body),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(12.dp)
+                                .padding(top = 32.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.welcome_title),
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                            Text(
+                                text = stringResource(Res.string.welcome_body),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
                     }
                 }
             }
