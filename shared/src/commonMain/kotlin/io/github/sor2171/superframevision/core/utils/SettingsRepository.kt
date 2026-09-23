@@ -1,5 +1,8 @@
 package io.github.sor2171.superframevision.core.utils
 
+import io.github.sor2171.superframevision.core.entity.VideoCodec
+import io.github.sor2171.superframevision.core.entity.VideoFormat
+import io.github.sor2171.superframevision.core.entity.VideoQuality
 import io.github.sor2171.superframevision.core.entity.WorkingDirType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +33,12 @@ object SettingsRepository {
         val inferThread: Int = 8,
 
         val vulkanDevice: Int = 1,
-        val workingDir: WorkingDirType = WorkingDirType.SystemTemp
+        val workingDir: WorkingDirType = WorkingDirType.SystemTemp,
+
+        val videoFormat: VideoFormat = VideoFormat.MP4,
+        val videoCodec: VideoCodec = VideoCodec.LIBX265,
+        val videoQuality: VideoQuality = VideoQuality.HIGH,
+        val videoOutputDir: String? = null
     ) {
         companion object {
             val default: OverallSettings get() = OverallSettings()

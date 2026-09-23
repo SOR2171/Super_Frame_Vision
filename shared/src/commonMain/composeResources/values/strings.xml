@@ -50,6 +50,24 @@
     <string name="settings_title_ai_device">AI Compute Device</string>
     <string name="settings_tooltip_ai_device">Sometimes the "AUTO" setting malfunctions, and at times, two integrated GPUs appear.</string>
 
+    <string name="settings_title_video_format">Export Video Format</string>
+    <string name="settings_tooltip_video_format">Container format for the exported video file.</string>
+    <string name="settings_title_video_codec">Video Codec</string>
+    <string name="settings_tooltip_video_codec">Select video encoder. Hardware acceleration is faster with low CPU usage; CPU software encoding provides higher compression efficiency.</string>
+    <string name="settings_title_video_quality">Video Quality</string>
+    <string name="settings_tooltip_video_quality">Preset quality tier. Optimal rate control parameters are automatically adapted for the chosen codec.</string>
+
+    <string name="video_quality_very_high">Very High Quality</string>
+    <string name="video_quality_high">High Quality</string>
+    <string name="video_quality_medium">Balanced (Medium)</string>
+    <string name="video_quality_low">Smaller Size (Low)</string>
+
+    <string name="settings_title_video_output_dir">Video Output Directory</string>
+    <string name="settings_tooltip_video_output_dir">Directory where the output video will be saved. If not set, saves to the source video's directory.</string>
+    <string name="settings_output_dir_default">Default (Same as source video)</string>
+    <string name="settings_btn_choose_dir">Select Folder</string>
+    <string name="settings_cd_clear_output_dir">Clear output directory</string>
+
     <string name="settings_cd_reset">Reset</string>
     <string name="settings_cd_save">Save</string>
 

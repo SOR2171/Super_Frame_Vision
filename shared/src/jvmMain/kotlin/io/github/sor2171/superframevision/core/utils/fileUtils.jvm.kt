@@ -126,7 +126,12 @@ actual object FileUtils {
 
     actual fun move(sourcePath: Path, targetPath: Path) {
         fileSystem.createDirectories(targetPath.parent!!)
-        fileSystem.atomicMove(sourcePath, targetPath)
+        try {
+            fileSystem.atomicMove(sourcePath, targetPath)
+        } catch (_: Exception) {
+            fileSystem.copy(sourcePath, targetPath)
+            fileSystem.delete(sourcePath, mustExist = false)
+        }
     }
 
     actual suspend fun read(vararg folders: String): ByteArray? =

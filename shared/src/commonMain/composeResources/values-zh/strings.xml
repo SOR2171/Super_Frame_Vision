@@ -51,6 +51,24 @@
     <string name="settings_title_ai_device">AI 计算设备</string>
     <string name="settings_tooltip_ai_device">有些时候AUTO会出问题，有些时候会出现两个核显</string>
 
+    <string name="settings_title_video_format">导出文件格式</string>
+    <string name="settings_tooltip_video_format">最终生成视频文件的容器格式。</string>
+    <string name="settings_title_video_codec">视频编码方式</string>
+    <string name="settings_tooltip_video_codec">选择视频编码器。硬件加速速度更快且占用更低，CPU软编画质与压缩率更好。</string>
+    <string name="settings_title_video_quality">视频质量档位</string>
+    <string name="settings_tooltip_video_quality">设置输出画质档位，会自动适配当前编码器的最优控制参数。</string>
+
+    <string name="video_quality_very_high">极高质量 (Very High)</string>
+    <string name="video_quality_high">高质量 (High)</string>
+    <string name="video_quality_medium">均衡 (Medium)</string>
+    <string name="video_quality_low">较小体积 (Low)</string>
+
+    <string name="settings_title_video_output_dir">视频输出目录</string>
+    <string name="settings_tooltip_video_output_dir">处理完成后视频导出的目录。如果不设置，则默认输出到原视频所在目录。</string>
+    <string name="settings_output_dir_default">默认（与原视频同目录）</string>
+    <string name="settings_btn_choose_dir">选择文件夹</string>
+    <string name="settings_cd_clear_output_dir">清除输出目录</string>
+
     <string name="settings_cd_reset">重置</string>
     <string name="settings_cd_save">保存</string>
 

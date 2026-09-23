@@ -4,6 +4,7 @@ package io.github.sor2171.superframevision.core.service
 
 import io.github.sor2171.ffmpegkitkmp.FFmpegRunner
 import io.github.sor2171.superframevision.core.entity.Models
+import io.github.sor2171.superframevision.core.entity.VideoFormat
 import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.isFile
@@ -19,10 +20,11 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 class MediaProcessor private constructor(
     private val sourcePath: Path,
     private val outputPath: Path,
-    private val tmpDir: Path
+    private val tmpDir: Path,
+    val format: VideoFormat = VideoFormat.MP4
 ) : AutoCloseable {
     var isSuccessful: Boolean = false
-    private val processOutputPath: Path = sourcePath.parent!! / "processed.mp4"
+    private val processOutputPath: Path = sourcePath.parent!! / "processed.${format.extension}"
     val originFrameDir: Path = tmpDir / Const.ORIGIN_FRAME_DIR
     val upscaledFrameDir: Path = tmpDir / Const.UPSCALED_FRAME_DIR
     val inferredFrameDir: Path = tmpDir / Const.INFERRED_FRAME_DIR
@@ -60,6 +62,8 @@ class MediaProcessor private constructor(
         suspend fun createSession(
             inputPath: Path,
             tmpDir: Path,
+            format: VideoFormat = VideoFormat.MP4,
+            videoOutputDir: Path? = null
         ): MediaProcessor {
             val ext = inputPath.name.substringAfter(".", "")
             val sourcePath = if (ext.isEmpty()) tmpDir / "input_video"
@@ -68,10 +72,18 @@ class MediaProcessor private constructor(
             if (!sourcePath.isFile() || !isSameFile(inputPath, sourcePath)) {
                 FileUtils.copy(inputPath, sourcePath)
             }
+            val baseName = inputPath.name.substringBeforeLast(".")
+            val outputFileName = if (inputPath.name == "$baseName.${format.extension}") {
+                "${baseName}_processed.${format.extension}"
+            } else {
+                "$baseName.${format.extension}"
+            }
+            val outputDirectory = videoOutputDir ?: inputPath.parent!!
             return MediaProcessor(
                 sourcePath,
-                inputPath.parent!! / inputPath.name.substringBefore("."),
-                tmpDir
+                outputDirectory / outputFileName,
+                tmpDir,
+                format
             )
         }
     }
@@ -371,7 +383,7 @@ class MediaProcessor private constructor(
         }
     }
 
-    fun encodeToMp4(
+    fun encodeToVideo(
         frameRate: Double = detectInputFrameRate() ?: 30.0,
         options: Map<String, String> = defaultEncodingOptions,
         finishDirLambda: MediaProcessor.() -> Path
@@ -380,7 +392,7 @@ class MediaProcessor private constructor(
             "frameRate must be finite and greater than 0"
         }
 
-        println("开始编码为 MP4，并复制原视频音轨：$processOutputPath")
+        println("开始编码为 ${format.name}，并复制原视频音轨：$processOutputPath")
 
         val finishDir = finishDirLambda(this)
         val optStr = options.entries.joinToString(" ") { "${it.key} ${it.value}" }
@@ -402,6 +414,12 @@ class MediaProcessor private constructor(
 
         return !result.isNullOrBlank()
     }
+
+    fun encodeToMp4(
+        frameRate: Double = detectInputFrameRate() ?: 30.0,
+        options: Map<String, String> = defaultEncodingOptions,
+        finishDirLambda: MediaProcessor.() -> Path
+    ): Boolean = encodeToVideo(frameRate, options, finishDirLambda)
 
     private fun quotePath(path: Path): String = "\"$path\""
 

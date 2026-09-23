@@ -8,6 +8,7 @@ import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.isFile
 import io.github.sor2171.superframevision.core.utils.isSameFile
 import io.github.sor2171.superframevision.core.utils.SettingsRepository
+import okio.Path.Companion.toPath
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,7 +52,8 @@ class ProcessLauncher(
                             if (isSameFile(queueFile.path, existingVideoInTmp)) {
                                 println("检测到缓存中的文件与当前任务一致，继续使用原数据")
                                 val newExt = queueFile.path.name.substringAfter(".", "")
-                                val expectedName = if (newExt.isEmpty()) "input_video" else "input_video.$newExt"
+                                val expectedName =
+                                    if (newExt.isEmpty()) "input_video" else "input_video.$newExt"
                                 if (existingVideoInTmp.name != expectedName) {
                                     val targetPath = tmpDir / expectedName
                                     println("同步缓存文件名：${existingVideoInTmp.name} -> $expectedName")
@@ -65,9 +67,17 @@ class ProcessLauncher(
                             FileUtils.clearTmp(tmpDir)
                         }
 
+                        val encodingOptions =
+                            settings.videoQuality.buildEncodingOptions(settings.videoCodec)
+
+                        val customOutputDir =
+                            settings.videoOutputDir?.takeIf { it.isNotBlank() }?.toPath()
+
                         MediaProcessor.createSession(
                             queueFile.path,
-                            tmpDir
+                            tmpDir,
+                            settings.videoFormat,
+                            customOutputDir
                         ).use { mediaProcessor ->
                             val chosenProcessType = getProcessType()
                             println("开始处理：$chosenProcessType ${queueFile.path}")
@@ -91,8 +101,12 @@ class ProcessLauncher(
                                         settings.vulkanDevice,
                                         settings.upscaleThread
                                     )
-                                    check(mediaProcessor.encodeToMp4 { this.upscaledFrameDir })
-                                    { "Failed to encode MP4" }
+                                    check(
+                                        mediaProcessor.encodeToVideo(
+                                            options = encodingOptions
+                                        ) { this.upscaledFrameDir }
+                                    )
+                                    { "Failed to encode video" }
                                 }
 
                                 ProcessType.VideoFI -> {
@@ -107,8 +121,13 @@ class ProcessLauncher(
                                         settings.vulkanDevice,
                                         settings.inferThread
                                     )
-                                    check(mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir })
-                                    { "Failed to encode MP4" }
+                                    check(
+                                        mediaProcessor.encodeToVideo(
+                                            originalFrameRate * 2,
+                                            options = encodingOptions
+                                        ) { this.inferredFrameDir }
+                                    )
+                                    { "Failed to encode video" }
                                 }
 
                                 ProcessType.VideoSRFI -> {
@@ -128,8 +147,12 @@ class ProcessLauncher(
                                         settings.vulkanDevice,
                                         settings.inferThread
                                     )
-                                    check(mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir })
-                                    { "Failed to encode MP4" }
+                                    check(
+                                        mediaProcessor.encodeToVideo(
+                                            originalFrameRate * 2,
+                                            options = encodingOptions
+                                        ) { this.inferredFrameDir })
+                                    { "Failed to encode video" }
                                 }
                             }
 

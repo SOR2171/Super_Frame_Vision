@@ -47,6 +47,7 @@ import io.github.sor2171.superframevision.ui.screens.SettingsScreen
 import io.github.sor2171.superframevision.ui.screens.rememberConsoleState
 import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
 import io.github.vinceglb.filekit.dialogs.FileKitMode
+import io.github.vinceglb.filekit.dialogs.compose.rememberDirectoryPickerLauncher
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.dialogs.compose.rememberFileSaverLauncher
 import io.github.vinceglb.filekit.path
@@ -102,6 +103,16 @@ fun App() {
             onError = {}
         ) { file ->
             val path = file?.path?.toPath() ?: return@rememberFileSaverLauncher
+            callback(path)
+        }
+    }
+
+    val directoryPickerLauncher = @Composable { callback: (Path) -> Unit ->
+        rememberDirectoryPickerLauncher(
+            dialogSettings = FileKitDialogSettings.createDefault(),
+            onError = {}
+        ) { directory ->
+            val path = directory?.path?.toPath() ?: return@rememberDirectoryPickerLauncher
             callback(path)
         }
     }
@@ -173,7 +184,8 @@ fun App() {
                         Screens.Settings -> SettingsScreen(
                             settingsScreenScrollState = settingsScreenScrollState,
                             confirmChange = SettingsRepository::save,
-                            originSettings = settings
+                            originSettings = settings,
+                            directoryPickerLauncher = directoryPickerLauncher
                         )
 
                         Screens.Info -> InfoScreen()
