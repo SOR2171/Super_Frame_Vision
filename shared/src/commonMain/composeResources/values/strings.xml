@@ -24,6 +24,9 @@
     <string name="process_status_processing">Processing: %1$s</string>
     <string name="process_status_pending">Upcoming: %1$s</string>
     <string name="process_queue_empty">Queue is empty</string>
+    <string name="process_progress_label">Progress: %1$d / %2$d (%3$d%)</string>
+    <string name="process_remaining_time">Remaining: %1$s</string>
+    <string name="process_progress_idle">Progress: --</string>
 
     <string name="process_btn_export_log">Export Log</string>
     <string name="process_btn_clear_console">Clear Console</string>

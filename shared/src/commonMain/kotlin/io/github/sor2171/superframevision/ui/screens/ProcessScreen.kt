@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -48,13 +49,17 @@ import superframevision.shared.generated.resources.process_btn_clear_console
 import superframevision.shared.generated.resources.process_btn_export_log
 import superframevision.shared.generated.resources.process_cd_stop
 import superframevision.shared.generated.resources.process_internal_output_hint
+import superframevision.shared.generated.resources.process_progress_idle
+import superframevision.shared.generated.resources.process_progress_label
 import superframevision.shared.generated.resources.process_queue_empty
+import superframevision.shared.generated.resources.process_remaining_time
 import superframevision.shared.generated.resources.process_running_on
 import superframevision.shared.generated.resources.process_status_pending
 import superframevision.shared.generated.resources.process_status_processing
 import java.io.OutputStream
 import java.io.PrintStream
 import java.time.LocalDateTime
+import kotlin.time.Duration
 
 @Composable
 fun ProcessScreen(
@@ -63,7 +68,10 @@ fun ProcessScreen(
     platform: Platform,
     isProcessing: Boolean,
     queueFileList: SnapshotStateList<QueueFile>,
-    consoleState: ConsoleState
+    consoleState: ConsoleState,
+    ncnnTaskTotal: Int = 0,
+    ncnnTaskCompleted: Int = 0,
+    ncnnRemainingTime: Duration? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
     val launcher = saverPickerLauncher { path ->
@@ -86,7 +94,7 @@ fun ProcessScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
+                .height(180.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -120,6 +128,51 @@ fun ProcessScreen(
                     text = statusText,
                     style = MaterialTheme.typography.titleMedium
                 )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val progress = if (ncnnTaskTotal > 0) {
+                        (ncnnTaskCompleted.toFloat() / ncnnTaskTotal.toFloat()).coerceIn(0f, 1f)
+                    } else 0f
+                    val percent = (progress * 100).toInt()
+
+                    val progressText = if (ncnnTaskTotal > 0) {
+                        stringResource(Res.string.process_progress_label, ncnnTaskCompleted, ncnnTaskTotal, percent)
+                    } else {
+                        stringResource(Res.string.process_progress_idle)
+                    }
+                    val remainingText = stringResource(
+                        Res.string.process_remaining_time,
+                        formatDuration(ncnnRemainingTime)
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = progressText,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = remainingText,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(24.dp))
+
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(8.dp)
+                    )
+                }
             }
         }
 
@@ -266,4 +319,18 @@ fun rememberConsoleState(redirectSystemOut: Boolean = true): ConsoleState {
     }
 
     return consoleState
+}
+
+private fun formatDuration(duration: Duration?): String {
+    if (duration == null) return "--:--"
+    val totalSeconds = duration.inWholeSeconds
+    if (totalSeconds < 0) return "--:--"
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        "${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
+    } else {
+        "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
+    }
 }

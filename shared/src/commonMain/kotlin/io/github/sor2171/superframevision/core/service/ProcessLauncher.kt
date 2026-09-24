@@ -15,27 +15,58 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration
+import kotlin.time.TimeMark
 
 class ProcessLauncher(
     private val scope: CoroutineScope,
     private val queueFileList: SnapshotStateList<QueueFile>,
     private val getSettings: () -> SettingsRepository.OverallSettings,
     private val getProcessType: () -> ProcessType,
-    private val onProcessingStateChange: (Boolean) -> Unit
+    private val onProcessingStateChange: (Boolean) -> Unit,
+    private val onTaskProgressChange: (total: Int, completed: Int, startTime: TimeMark?, remainingTime: Duration?) -> Unit = { _, _, _, _ -> }
 ) {
     var processJob: Job? = null
         private set
 
+    var ncnnTaskTotal: Int = 0
+        private set
+    var ncnnTaskCompleted: Int = 0
+        private set
+    var queueStartTime: TimeMark? = null
+        private set
+    var remainingTime: Duration? = null
+        private set
+
+    private fun updateTaskProgress(total: Int, completed: Int, startTime: TimeMark? = null) {
+        ncnnTaskTotal = total
+        ncnnTaskCompleted = completed
+        queueStartTime = startTime
+        val remaining = if (startTime != null && completed > 0 && total > completed) {
+            val elapsed = startTime.elapsedNow()
+            elapsed * (total - completed) / completed
+        } else if (total in 1..completed) {
+            Duration.ZERO
+        } else {
+            null
+        }
+        remainingTime = remaining
+        onTaskProgressChange(total, completed, startTime, remaining)
+    }
+
     fun cancel() {
         processJob?.cancel()
+        updateTaskProgress(0, 0, null)
     }
 
     fun start() {
         processJob = scope.launch(Dispatchers.Default) {
             onProcessingStateChange(true)
+            updateTaskProgress(0, 0, null)
             try {
                 while (queueFileList.isNotEmpty()) {
                     ensureActive()
+                    updateTaskProgress(0, 0, null)
 
                     val queueFile = queueFileList.first()
                     queueFile.isProcessing.value = true
@@ -77,7 +108,8 @@ class ProcessLauncher(
                             queueFile.path,
                             tmpDir,
                             settings.videoFormat,
-                            customOutputDir
+                            customOutputDir,
+                            onTaskProgress = ::updateTaskProgress
                         ).use { mediaProcessor ->
                             val chosenProcessType = getProcessType()
                             println("开始处理：$chosenProcessType ${queueFile.path}")
@@ -172,6 +204,7 @@ class ProcessLauncher(
                     }
                 }
             } finally {
+                updateTaskProgress(0, 0)
                 onProcessingStateChange(false)
             }
         }

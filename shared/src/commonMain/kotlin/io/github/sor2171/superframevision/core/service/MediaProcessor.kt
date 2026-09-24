@@ -8,7 +8,6 @@ import io.github.sor2171.superframevision.core.entity.VideoFormat
 import io.github.sor2171.superframevision.core.utils.Const
 import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.isFile
-import io.github.sor2171.superframevision.core.utils.isSameFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -16,15 +15,18 @@ import okio.FileSystem
 import okio.Path
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 class MediaProcessor private constructor(
     private val sourcePath: Path,
     private val outputPath: Path,
     private val tmpDir: Path,
-    val format: VideoFormat = VideoFormat.MP4
+    val format: VideoFormat = VideoFormat.MP4,
+    var onTaskProgress: ((total: Int, completed: Int, startTime: TimeMark?) -> Unit)? = null
 ) : AutoCloseable {
     var isSuccessful: Boolean = false
-    private val processOutputPath: Path = sourcePath.parent!! / "processed.${format.extension}"
+    private val processOutputPath: Path = tmpDir / "processed.${format.extension}"
     val originFrameDir: Path = tmpDir / Const.ORIGIN_FRAME_DIR
     val upscaledFrameDir: Path = tmpDir / Const.UPSCALED_FRAME_DIR
     val inferredFrameDir: Path = tmpDir / Const.INFERRED_FRAME_DIR
@@ -45,6 +47,13 @@ class MediaProcessor private constructor(
 
     val ncnnTaskList: MutableList<NcnnTask> = mutableListOf()
     private val taskIndex = AtomicInt(0)
+    var ncnnTaskTotal: Int = 0
+        private set
+    private val _ncnnTaskCompleted = AtomicInt(0)
+    val ncnnTaskCompleted: Int
+        get() = _ncnnTaskCompleted.load()
+    var queueStartTime: TimeMark? = null
+        private set
 
     companion object {
         /** 默认编码参数（高质量、兼容性好） */
@@ -59,19 +68,13 @@ class MediaProcessor private constructor(
          * @param inputPath  输入视频路径
          * @param tmpDir     工作的缓存目录
          */
-        suspend fun createSession(
+        fun createSession(
             inputPath: Path,
             tmpDir: Path,
             format: VideoFormat = VideoFormat.MP4,
-            videoOutputDir: Path? = null
+            videoOutputDir: Path? = null,
+            onTaskProgress: ((total: Int, completed: Int, startTime: TimeMark?) -> Unit)? = null
         ): MediaProcessor {
-            val ext = inputPath.name.substringAfter(".", "")
-            val sourcePath = if (ext.isEmpty()) tmpDir / "input_video"
-            else tmpDir / "input_video.$ext"
-
-            if (!sourcePath.isFile() || !isSameFile(inputPath, sourcePath)) {
-                FileUtils.copy(inputPath, sourcePath)
-            }
             val baseName = inputPath.name.substringBeforeLast(".")
             val outputFileName = if (inputPath.name == "$baseName.${format.extension}") {
                 "${baseName}_processed.${format.extension}"
@@ -80,10 +83,11 @@ class MediaProcessor private constructor(
             }
             val outputDirectory = videoOutputDir ?: inputPath.parent!!
             return MediaProcessor(
-                sourcePath,
+                inputPath,
                 outputDirectory / outputFileName,
                 tmpDir,
-                format
+                format,
+                onTaskProgress
             )
         }
     }
@@ -280,13 +284,22 @@ class MediaProcessor private constructor(
                 inferredFrameDir / "${String.format("%06d", 2 * num - 1)}.jpg"
             } else null
 
-            val isAlreadyDone = (savePath.isFile() && (FileSystem.SYSTEM.metadataOrNull(savePath)?.size ?: 0L) > 0L) ||
-                    (oddPathInInferred != null && oddPathInInferred.isFile() && (FileSystem.SYSTEM.metadataOrNull(oddPathInInferred)?.size ?: 0L) > 0L)
+            val isAlreadyDone =
+                (savePath.isFile() && (FileSystem.SYSTEM.metadataOrNull(savePath)?.size
+                    ?: 0L) > 0L) ||
+                        (oddPathInInferred != null && oddPathInInferred.isFile() && (FileSystem.SYSTEM.metadataOrNull(
+                            oddPathInInferred
+                        )?.size ?: 0L) > 0L)
 
             if (!isAlreadyDone) {
                 ncnnTaskList.add(NcnnTask.SuperResolution(path, savePath))
             }
         }
+        val startTime = TimeSource.Monotonic.markNow()
+        queueStartTime = startTime
+        ncnnTaskTotal = ncnnTaskList.size
+        _ncnnTaskCompleted.store(0)
+        onTaskProgress?.invoke(ncnnTaskTotal, 0, startTime)
         println("超分辨率待处理任务数：${ncnnTaskList.size} / ${inputs.size}")
         if (ncnnTaskList.isEmpty()) return@coroutineScope
         taskIndex.store(0)
@@ -308,6 +321,8 @@ class MediaProcessor private constructor(
                         if (index >= ncnnTaskList.size) break
                         val task = ncnnTaskList[index] as NcnnTask.SuperResolution
                         runner.upscale(task.inputPath, task.outputPath)
+                        val completed = _ncnnTaskCompleted.fetchAndAdd(1) + 1
+                        onTaskProgress?.invoke(ncnnTaskTotal, completed, startTime)
                     }
                 }
             }
@@ -351,6 +366,11 @@ class MediaProcessor private constructor(
                 ncnnTaskList.add(NcnnTask.FrameInterpolation(img0, img1, savePath))
             }
         }
+        val startTime = TimeSource.Monotonic.markNow()
+        queueStartTime = startTime
+        ncnnTaskTotal = ncnnTaskList.size
+        _ncnnTaskCompleted.store(0)
+        onTaskProgress?.invoke(ncnnTaskTotal, 0, startTime)
         println("插帧待处理任务数：${ncnnTaskList.size} / ${inputFrameList.size}")
         if (ncnnTaskList.isEmpty()) return@coroutineScope
         taskIndex.store(0)
@@ -377,6 +397,8 @@ class MediaProcessor private constructor(
                             task.savePath,
                             task.timestep
                         )
+                        val completed = _ncnnTaskCompleted.fetchAndAdd(1) + 1
+                        onTaskProgress?.invoke(ncnnTaskTotal, completed, startTime)
                     }
                 }
             }

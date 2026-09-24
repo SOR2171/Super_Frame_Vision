@@ -53,6 +53,8 @@ import io.github.vinceglb.filekit.dialogs.compose.rememberFileSaverLauncher
 import io.github.vinceglb.filekit.path
 import okio.Path
 import okio.Path.Companion.toPath
+import kotlin.time.Duration
+import kotlin.time.TimeMark
 
 @Composable
 @Preview
@@ -62,6 +64,10 @@ fun App() {
     var chosenProcessType by remember { mutableStateOf(ProcessType.VideoFI) }
     var isProcessing by remember { mutableStateOf(false) }
     val queueFileList = remember { mutableStateListOf<QueueFile>() }
+    var ncnnTaskTotal by remember { mutableStateOf(0) }
+    var ncnnTaskCompleted by remember { mutableStateOf(0) }
+    var ncnnQueueStartTime by remember { mutableStateOf<TimeMark?>(null) }
+    var ncnnRemainingTime by remember { mutableStateOf<Duration?>(null) }
 
     val settings by SettingsRepository.settings.collectAsState()
     val settingsScreenScrollState = rememberScrollState()
@@ -78,7 +84,13 @@ fun App() {
             queueFileList = queueFileList,
             getSettings = ::usableSettings,
             getProcessType = { chosenProcessType },
-            onProcessingStateChange = { isProcessing = it }
+            onProcessingStateChange = { isProcessing = it },
+            onTaskProgressChange = { total, completed, startTime, remaining ->
+                ncnnTaskTotal = total
+                ncnnTaskCompleted = completed
+                ncnnQueueStartTime = startTime
+                ncnnRemainingTime = remaining
+            }
         )
     }
 
@@ -178,7 +190,10 @@ fun App() {
                             isProcessing = isProcessing,
                             platform = platform,
                             queueFileList = queueFileList,
-                            consoleState = consoleState
+                            consoleState = consoleState,
+                            ncnnTaskTotal = ncnnTaskTotal,
+                            ncnnTaskCompleted = ncnnTaskCompleted,
+                            ncnnRemainingTime = ncnnRemainingTime
                         )
 
                         Screens.Settings -> SettingsScreen(
