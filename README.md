@@ -13,7 +13,6 @@
 
 zh | [en](./README_en.md)
 
-
 ---
 
 这是一个 Kotlin 多平台项目，目标平台为桌面端（JVM）。
@@ -68,6 +67,13 @@ zh | [en](./README_en.md)
 
 - 桌面端测试：`./gradlew :shared:jvmTest`
 
----
-
 了解更多关于 [Kotlin 多平台](https://www.jetbrains.com.cn/en-us/help/kotlin-multiplatform-dev/get-started.html)…
+
+## 开源协议与 FFmpeg 声明
+
+本项目使用了 [FFmpeg](https://ffmpeg.org/)（通过 [`FFmpeg Kit KMP`](https://github.com/SOR2171/FFmpeg-Kit_KMP)），并启用了在 GPL 协议下编译的相关组件。
+
+因此，本项目遵循 **[GNU General Public License v3.0 (GPL-3.0)](./LICENSE)** 开放源代码。
+
+- FFmpeg 的版权归属于其原始开发者及 FFmpeg 项目团队。
+- 有关 FFmpeg 的更多许可协议说明与源代码，请参阅 [FFmpeg 官方网站](https://ffmpeg.org/) 与 [FFmpeg 法律合规声明](https://ffmpeg.org/legal.html)。

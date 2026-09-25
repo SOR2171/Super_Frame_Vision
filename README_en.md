@@ -58,7 +58,14 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 
 - Desktop tests: `./gradlew :shared:jvmTest`
 
----
-
 Learn more
 about [Kotlin Multiplatform](https://www.jetbrains.com.cn/en-us/help/kotlin-multiplatform-dev/get-started.html)…
+
+## License & FFmpeg Notice
+
+This project uses [FFmpeg](https://ffmpeg.org/) (via [`FFmpeg Kit KMP`](https://github.com/SOR2171/FFmpeg-Kit_KMP)) and includes components compiled under the GPL license.
+
+Accordingly, this project is licensed under the **[GNU General Public License v3.0 (GPL-3.0)](./LICENSE)**.
+
+- FFmpeg is a trademark and open-source project of the FFmpeg developers/team, and its copyright belongs to its original authors.
+- For more licensing information, legal notices, and source code of FFmpeg, please visit the [FFmpeg Official Website](https://ffmpeg.org/) and [FFmpeg Legal Information](https://ffmpeg.org/legal.html).
