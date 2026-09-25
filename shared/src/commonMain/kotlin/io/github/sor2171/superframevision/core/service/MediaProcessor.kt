@@ -10,7 +10,10 @@ import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.isFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import okio.FileSystem
 import okio.Path
 import kotlin.concurrent.atomics.AtomicInt
@@ -262,7 +265,7 @@ class MediaProcessor private constructor(
         thread: Int = 4,
         originFrameDir: Path = this.originFrameDir,
         upscaledFrameDir: Path = this.upscaledFrameDir
-    ) = coroutineScope {
+    ) {
         println("开始处理超分辨率，输出于$upscaledFrameDir")
         require(thread > 0) { "thread must be greater than 0" }
 
@@ -301,31 +304,38 @@ class MediaProcessor private constructor(
         _ncnnTaskCompleted.store(0)
         onTaskProgress?.invoke(ncnnTaskTotal, 0, startTime)
         println("超分辨率待处理任务数：${ncnnTaskList.size} / ${inputs.size}")
-        if (ncnnTaskList.isEmpty()) return@coroutineScope
+        if (ncnnTaskList.isEmpty()) return
         taskIndex.store(0)
 
+        val size = detectDimensions() ?: (1920 to 1080)
         val workerCount = minOf(thread, ncnnTaskList.size)
 
-        repeat(workerCount) {
-            launch(Dispatchers.Default) {
-                val size = detectDimensions() ?: (1920 to 1080)
-
-                NcnnRunner.createSession(
-                    size,
-                    model,
-                    times = 2,
-                    deviceIndex,
-                ).use { runner ->
-                    while (true) {
-                        val index = taskIndex.fetchAndAdd(1)
-                        if (index >= ncnnTaskList.size) break
-                        val task = ncnnTaskList[index] as NcnnTask.SuperResolution
-                        runner.upscale(task.inputPath, task.outputPath)
-                        val completed = _ncnnTaskCompleted.fetchAndAdd(1) + 1
-                        onTaskProgress?.invoke(ncnnTaskTotal, completed, startTime)
+        try {
+            NcnnRunner.createSession(
+                size,
+                model,
+                times = 2,
+                deviceIndex,
+            ).use { runner ->
+                coroutineScope {
+                    repeat(workerCount) {
+                        launch(Dispatchers.Default) {
+                            while (isActive) {
+                                ensureActive()
+                                val index = taskIndex.fetchAndAdd(1)
+                                if (index >= ncnnTaskList.size) break
+                                val task = ncnnTaskList[index] as NcnnTask.SuperResolution
+                                runner.upscale(task.inputPath, task.outputPath)
+                                val completed = _ncnnTaskCompleted.fetchAndAdd(1) + 1
+                                onTaskProgress?.invoke(ncnnTaskTotal, completed, startTime)
+                                yield()
+                            }
+                        }
                     }
                 }
             }
+        } finally {
+            ncnnTaskList.clear()
         }
     }
 
@@ -333,7 +343,7 @@ class MediaProcessor private constructor(
         model: Models,
         deviceIndex: Int,
         thread: Int = 4
-    ) = coroutineScope {
+    ) {
         println("准备执行插帧，线程数：$thread")
         require(thread > 0) { "thread must be greater than 0" }
 
@@ -372,36 +382,43 @@ class MediaProcessor private constructor(
         _ncnnTaskCompleted.store(0)
         onTaskProgress?.invoke(ncnnTaskTotal, 0, startTime)
         println("插帧待处理任务数：${ncnnTaskList.size} / ${inputFrameList.size}")
-        if (ncnnTaskList.isEmpty()) return@coroutineScope
+        if (ncnnTaskList.isEmpty()) return
         taskIndex.store(0)
 
+        val size = detectDimensions() ?: (1920 to 1080)
         val workerCount = minOf(thread, ncnnTaskList.size)
 
-        repeat(workerCount) {
-            launch(Dispatchers.Default) {
-                val size = detectDimensions() ?: (1920 to 1080)
-
-                NcnnRunner.createSession(
-                    size,
-                    model,
-                    times = 2,
-                    deviceIndex,
-                ).use { runner ->
-                    while (true) {
-                        val index = taskIndex.fetchAndAdd(1)
-                        if (index >= ncnnTaskList.size) break
-                        val task = ncnnTaskList[index] as NcnnTask.FrameInterpolation
-                        runner.inferFrame(
-                            task.img0Path,
-                            task.img1Path,
-                            task.savePath,
-                            task.timestep
-                        )
-                        val completed = _ncnnTaskCompleted.fetchAndAdd(1) + 1
-                        onTaskProgress?.invoke(ncnnTaskTotal, completed, startTime)
+        try {
+            NcnnRunner.createSession(
+                size,
+                model,
+                times = 2,
+                deviceIndex,
+            ).use { runner ->
+                coroutineScope {
+                    repeat(workerCount) {
+                        launch(Dispatchers.Default) {
+                            while (isActive) {
+                                ensureActive()
+                                val index = taskIndex.fetchAndAdd(1)
+                                if (index >= ncnnTaskList.size) break
+                                val task = ncnnTaskList[index] as NcnnTask.FrameInterpolation
+                                runner.inferFrame(
+                                    task.img0Path,
+                                    task.img1Path,
+                                    task.savePath,
+                                    task.timestep
+                                )
+                                val completed = _ncnnTaskCompleted.fetchAndAdd(1) + 1
+                                onTaskProgress?.invoke(ncnnTaskTotal, completed, startTime)
+                                yield()
+                            }
+                        }
                     }
                 }
             }
+        } finally {
+            ncnnTaskList.clear()
         }
     }
 

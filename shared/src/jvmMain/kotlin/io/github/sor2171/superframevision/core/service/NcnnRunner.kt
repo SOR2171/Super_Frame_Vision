@@ -8,6 +8,7 @@ import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.VulkanDeviceDetector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okio.FileSystem
 import okio.Path
 import org.slf4j.LoggerFactory
 import superframevision.shared.generated.resources.Res
@@ -271,8 +272,8 @@ actual class NcnnRunner(
 
             val image0 = loadImage(img0Path)
             val image1 = loadImage(img1Path)
-
-            require(image0.width == image1.width && image0.height == image1.height) {
+            try {
+                require(image0.width == image1.width && image0.height == image1.height) {
                 "RIFE input dimension mismatch: " +
                         "image0=${image0.width}x${image0.height}, " +
                         "image1=${image1.width}x${image1.height}"
@@ -512,14 +513,21 @@ actual class NcnnRunner(
             }
 
             val outputImage = BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB)
-
             outputImage.setRGB(0, 0, imageWidth, imageHeight, outputPixels, 0, imageWidth)
 
-            saveImage(outputImage, savePath)
+            try {
+                saveImage(outputImage, savePath)
+            } finally {
+                outputImage.flush()
+            }
 
             logger.info("RIFE output saved: {}", savePath)
+        } finally {
+            image0.flush()
+            image1.flush()
         }
     }
+}
 
     private fun runRifeTile(
         image0: BufferedImage,
@@ -841,8 +849,8 @@ actual class NcnnRunner(
             logger.info("Real-ESRGAN Tile inference: {}", outputPath)
 
             val inputImage = loadImage(inputPath)
-
-            val imageWidth = inputImage.width
+            try {
+                val imageWidth = inputImage.width
             val imageHeight = inputImage.height
 
             require(imageWidth > 0 && imageHeight > 0) {
@@ -1041,14 +1049,20 @@ actual class NcnnRunner(
             require(outputWidth > 0 && outputHeight > 0)
 
             val outputImage = BufferedImage(outputWidth, outputHeight, BufferedImage.TYPE_INT_RGB)
-
             outputImage.setRGB(0, 0, outputWidth, outputHeight, finalPixels, 0, outputWidth)
 
-            saveImage(outputImage, outputPath)
+            try {
+                saveImage(outputImage, outputPath)
+            } finally {
+                outputImage.flush()
+            }
 
             logger.info("Upscale result saved: {}", outputPath)
+        } finally {
+            inputImage.flush()
         }
     }
+}
 
     private fun runUpscaleTile(
         image: BufferedImage,
@@ -1497,10 +1511,9 @@ actual class NcnnRunner(
         return mat
     }
 
-    private suspend fun loadImage(path: Path): BufferedImage {
-        val bytes = FileUtils.read(path)
-        return withContext(Dispatchers.IO) {
-            ImageIO.read(ByteArrayInputStream(bytes))
+    private suspend fun loadImage(path: Path): BufferedImage = withContext(Dispatchers.IO) {
+        FileSystem.SYSTEM.read(path) {
+            ImageIO.read(this.inputStream())
         } ?: throw IllegalArgumentException("Cannot load: $path")
     }
 
