@@ -104,6 +104,8 @@ jobs:
           tag_name: ${{ env.TAG }}
           name: ${{ env.TAG }}
           generate_release_notes: true
+          body_path: .github/release-draft-template.md
+          prerelease: false
           files: |
             artifacts/**/*.dmg
             artifacts/**/*.msi
