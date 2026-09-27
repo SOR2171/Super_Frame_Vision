@@ -80,35 +80,64 @@ enum class VideoQuality(
                 options["-preset"] = cpuPreset
                 options["-pix_fmt"] = "yuv420p"
             }
-            VideoCodec.H264_NVENC, VideoCodec.HEVC_NVENC -> {
+
+            VideoCodec.LIBSVTAV1 -> {
+                options["-crf"] = (crf + 4).coerceIn(0, 63).toString()
+                val svtPreset = when (cpuPreset) {
+                    "slow" -> "5"
+                    "medium" -> "7"
+                    "fast" -> "9"
+                    else -> "7"
+                }
+                options["-preset"] = svtPreset
+                options["-pix_fmt"] = "yuv420p"
+            }
+
+            VideoCodec.LIBAOM_AV1 -> {
+                options["-crf"] = crf.toString()
+                options["-cpu-used"] = when (cpuPreset) {
+                    "slow" -> "3"
+                    "medium" -> "4"
+                    "fast" -> "6"
+                    else -> "4"
+                }
+                options["-pix_fmt"] = "yuv420p"
+            }
+
+            VideoCodec.H264_NVENC, VideoCodec.HEVC_NVENC, VideoCodec.AV1_NVENC -> {
                 options["-cq"] = cq.toString()
                 options["-preset"] = nvencPreset
                 options["-pix_fmt"] = "yuv420p"
             }
-            VideoCodec.H264_QSV, VideoCodec.HEVC_QSV -> {
+
+            VideoCodec.H264_QSV, VideoCodec.HEVC_QSV, VideoCodec.AV1_QSV -> {
                 options["-global_quality"] = globalQuality.toString()
                 options["-preset"] = cpuPreset
                 options["-pix_fmt"] = "nv12"
             }
-            VideoCodec.H264_AMF, VideoCodec.HEVC_AMF -> {
+
+            VideoCodec.H264_AMF, VideoCodec.HEVC_AMF, VideoCodec.AV1_AMF -> {
                 options["-rc"] = "cqp"
                 options["-qp_i"] = cq.toString()
                 options["-qp_p"] = cq.toString()
                 options["-quality"] = amfQuality
                 options["-pix_fmt"] = "yuv420p"
             }
-            VideoCodec.H264_VIDEOTOOLBOX, VideoCodec.HEVC_VIDEOTOOLBOX -> {
+
+            VideoCodec.H264_VIDEOTOOLBOX, VideoCodec.HEVC_VIDEOTOOLBOX, VideoCodec.AV1_VIDEOTOOLBOX -> {
                 options["-q:v"] = videoToolboxQuality.toString()
                 options["-pix_fmt"] = "yuv420p"
             }
-            VideoCodec.H264_VAAPI, VideoCodec.HEVC_VAAPI -> {
+
+            VideoCodec.H264_VAAPI, VideoCodec.HEVC_VAAPI, VideoCodec.AV1_VAAPI -> {
                 options["-qp"] = cq.toString()
             }
-            VideoCodec.H264_MF, VideoCodec.HEVC_MF,
+
+            VideoCodec.H264_MF, VideoCodec.HEVC_MF, VideoCodec.AV1_MF,
             VideoCodec.H264_D3D12VA, VideoCodec.HEVC_D3D12VA,
-            VideoCodec.H264_VULKAN, VideoCodec.HEVC_VULKAN/*,
-            VideoCodec.H264_MEDIACODEC, VideoCodec.HEVC_MEDIACODEC*/ -> {
-                options["-b:v"] = if (codec.isH265) bitrateH265 else bitrateH264
+            VideoCodec.H264_VULKAN, VideoCodec.HEVC_VULKAN, VideoCodec.AV1_VULKAN/*,
+            VideoCodec.H264_MEDIACODEC, VideoCodec.HEVC_MEDIACODEC, VideoCodec.AV1_MEDIACODEC*/ -> {
+                options["-b:v"] = if (codec.isH265 || codec.isAV1) bitrateH265 else bitrateH264
                 options["-pix_fmt"] = "yuv420p"
             }
         }

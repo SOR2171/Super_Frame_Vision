@@ -7,7 +7,8 @@ enum class VideoCodec(
     val codecName: String,
     val displayName: String,
     val isH265: Boolean,
-    val isHardware: Boolean
+    val isHardware: Boolean,
+    val isAV1: Boolean = false
 ) {
     // === H.264 / AVC ===
     LIBX264("libx264", "H.264 (CPU)", isH265 = false, isHardware = false),
@@ -31,7 +32,19 @@ enum class VideoCodec(
     HEVC_VULKAN("hevc_vulkan", "H.265 (Vulkan)", isH265 = true, isHardware = true),
     HEVC_VIDEOTOOLBOX("hevc_videotoolbox", "H.265 (Apple VideoToolbox)", isH265 = true, isHardware = true),
     // HEVC_MEDIACODEC("hevc_mediacodec", "H.265 (Android MediaCodec)", isH265 = true, isHardware = true),
-    HEVC_VAAPI("hevc_vaapi", "H.265 (Linux VAAPI)", isH265 = true, isHardware = true);
+    HEVC_VAAPI("hevc_vaapi", "H.265 (Linux VAAPI)", isH265 = true, isHardware = true),
+
+    // === AV1 ===
+    LIBSVTAV1("libsvtav1", "AV1 (CPU SVT-AV1)", isH265 = false, isHardware = false, isAV1 = true),
+    LIBAOM_AV1("libaom-av1", "AV1 (CPU libaom)", isH265 = false, isHardware = false, isAV1 = true),
+    AV1_NVENC("av1_nvenc", "AV1 (NVIDIA NVENC)", isH265 = false, isHardware = true, isAV1 = true),
+    AV1_QSV("av1_qsv", "AV1 (Intel QSV)", isH265 = false, isHardware = true, isAV1 = true),
+    AV1_AMF("av1_amf", "AV1 (AMD AMF)", isH265 = false, isHardware = true, isAV1 = true),
+    AV1_MF("av1_mf", "AV1 (Windows MF)", isH265 = false, isHardware = true, isAV1 = true),
+    AV1_VULKAN("av1_vulkan", "AV1 (Vulkan)", isH265 = false, isHardware = true, isAV1 = true),
+    AV1_VIDEOTOOLBOX("av1_videotoolbox", "AV1 (Apple VideoToolbox)", isH265 = false, isHardware = true, isAV1 = true),
+    // AV1_MEDIACODEC("av1_mediacodec", "AV1 (Android MediaCodec)", isH265 = false, isHardware = true, isAV1 = true),
+    AV1_VAAPI("av1_vaapi", "AV1 (Linux VAAPI)", isH265 = false, isHardware = true, isAV1 = true);
 
     fun label(): String = displayName
 }

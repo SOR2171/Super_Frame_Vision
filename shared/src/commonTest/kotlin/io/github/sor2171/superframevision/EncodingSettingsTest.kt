@@ -71,6 +71,18 @@ class EncodingSettingsTest {
         assertEquals("h264_qsv", qsvOpts["-c:v"])
         assertEquals("25", qsvOpts["-global_quality"])
 
+        // AV1 SVT: should use -crf and numeric -preset
+        val svtOpts = VideoQuality.HIGH.buildEncodingOptions(VideoCodec.LIBSVTAV1)
+        assertEquals("libsvtav1", svtOpts["-c:v"])
+        assertEquals("22", svtOpts["-crf"])
+        assertEquals("7", svtOpts["-preset"])
+
+        // AV1 NVENC: should use -cq and nvenc preset
+        val av1NvencOpts = VideoQuality.VERY_HIGH.buildEncodingOptions(VideoCodec.AV1_NVENC)
+        assertEquals("av1_nvenc", av1NvencOpts["-c:v"])
+        assertEquals("15", av1NvencOpts["-cq"])
+        assertEquals("p6", av1NvencOpts["-preset"])
+
         // All codecs should produce valid options
         VideoCodec.entries.forEach { codec ->
             val opts = VideoQuality.HIGH.buildEncodingOptions(codec)
