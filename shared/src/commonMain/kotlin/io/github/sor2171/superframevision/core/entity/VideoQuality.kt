@@ -124,7 +124,7 @@ enum class VideoQuality(
                 options["-pix_fmt"] = "yuv420p"
             }
 
-            VideoCodec.H264_VIDEOTOOLBOX, VideoCodec.HEVC_VIDEOTOOLBOX, VideoCodec.AV1_VIDEOTOOLBOX -> {
+            VideoCodec.H264_VIDEOTOOLBOX, VideoCodec.HEVC_VIDEOTOOLBOX /*, VideoCodec.AV1_VIDEOTOOLBOX*/ -> {
                 options["-q:v"] = videoToolboxQuality.toString()
                 options["-pix_fmt"] = "yuv420p"
             }
