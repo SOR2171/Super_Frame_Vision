@@ -2,6 +2,7 @@ package io.github.sor2171.superframevision.core.entity
 
 import kotlinx.serialization.Serializable
 
+@Suppress("SpellCheckingInspection")
 @Serializable
 enum class VideoCodec(
     val codecName: String,
@@ -42,7 +43,7 @@ enum class VideoCodec(
     AV1_AMF("av1_amf", "AV1 (AMD AMF)", isH265 = false, isHardware = true, isAV1 = true),
     AV1_MF("av1_mf", "AV1 (Windows MF)", isH265 = false, isHardware = true, isAV1 = true),
     AV1_VULKAN("av1_vulkan", "AV1 (Vulkan)", isH265 = false, isHardware = true, isAV1 = true),
-    AV1_VIDEOTOOLBOX("av1_videotoolbox", "AV1 (Apple VideoToolbox)", isH265 = false, isHardware = true, isAV1 = true),
+    // AV1_VIDEOTOOLBOX("av1_videotoolbox", "AV1 (Apple VideoToolbox)", isH265 = false, isHardware = true, isAV1 = true),
     // AV1_MEDIACODEC("av1_mediacodec", "AV1 (Android MediaCodec)", isH265 = false, isHardware = true, isAV1 = true),
     AV1_VAAPI("av1_vaapi", "AV1 (Linux VAAPI)", isH265 = false, isHardware = true, isAV1 = true);
 
