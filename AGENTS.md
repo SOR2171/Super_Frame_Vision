@@ -244,6 +244,7 @@ is modularized into discrete screens backed by specialized domain services:
         - **`NcnnRunner`**: Native NCNN AI inference engine; manages Vulkan GPU devices and executes
           Real-ESRGAN and RIFE (frame interpolation) models.
             - Key methods: `getAvailableDevices()`, `executeUpscale()`, `executeInterpolation()`
+            - Native C API file location: [`c_api.cpp`](./shared/src/jvmMain/kotlin/io/github/sor2171/superframevision/core/service/c_api.cpp)
         - **`FFmpegRunner`**: Media foundation engine from `ffmpeg-kit-kmp`; handles video demuxing,
           frame extraction, probing, and final video transcoding.
             - Key methods: `execute()`, `ffprobe()`
