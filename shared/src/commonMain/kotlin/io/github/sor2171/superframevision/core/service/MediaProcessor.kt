@@ -431,7 +431,7 @@ class MediaProcessor private constructor(
             "frameRate must be finite and greater than 0"
         }
 
-        println("开始编码为 ${format.name}，并复制原视频音轨：$processOutputPath")
+        println("开始编码为 ${format.name}，并复制原视频音轨及字幕：$processOutputPath")
 
         val finishDir = finishDirLambda(this)
         val optStr = options.entries.joinToString(" ") { "${it.key} ${it.value}" }
@@ -446,8 +446,10 @@ class MediaProcessor private constructor(
             quotePath(sourcePath),
             "-map 0:v:0",
             "-map 1:a?",
+            "-map 1:s?",
             optStr,
             "-c:a copy",
+            "-c:s copy",
             quotePath(processOutputPath)
         )
 
