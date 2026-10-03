@@ -27,9 +27,9 @@ zh | [en](./README_en.md)
 
 |         | X64 | Arm64 |
 |---------|:---:|:-----:|
-| Windows |  ✅  |       |
-| Linux   |  ✅  |       |
-| MacOS   |     |   ✅   |
+| Windows | ✅  |       |
+| Linux   | ✅  |       |
+| MacOS   |     |  ✅   |
 
 ## 关于 AI 模型
 
@@ -44,28 +44,12 @@ zh | [en](./README_en.md)
 
 参数均为 `inputshape=[1,6,1024,1024],[1,1,1,1]`，且使用 `ncnnoptimize` 进行16位量化。
 
-## 如何运行
-
-* [/shared](./shared/src) 用于存放跨 Compose 多平台应用共享的代码。
-  它包含以下几个子文件夹：
-    - [commonMain](./shared/src/commonMain/kotlin) 用于存放所有目标平台共享的代码。
-    - 其他文件夹用于存放仅编译到对应平台的 Kotlin 代码。
-      例如，如果你想修改桌面端（JVM）特有的部分，[jvmMain](./shared/src/jvmMain/kotlin)
-      文件夹就是合适的位置。
-
 ### 运行应用
 
 使用 IDE 工具栏中运行控件提供的运行配置。你也可以使用以下命令和选项：
 
-- 桌面端应用：
-    - 热重载：`./gradlew :desktopApp:hotRun --auto`
-    - 标准运行：`./gradlew :desktopApp:run`
-
-### 运行测试
-
-使用 IDE 编辑器侧边的运行按钮，或使用 Gradle 任务运行测试：
-
-- 桌面端测试：`./gradlew :shared:jvmTest`
+- 热重载：`./gradlew :desktopApp:hotRun --auto`
+- 标准运行：`./gradlew :desktopApp:run`
 
 了解更多关于 [Kotlin 多平台](https://www.jetbrains.com.cn/en-us/help/kotlin-multiplatform-dev/get-started.html)…
 
@@ -77,3 +61,8 @@ zh | [en](./README_en.md)
 
 - FFmpeg 的版权归属于其原始开发者及 FFmpeg 项目团队。
 - 有关 FFmpeg 的更多许可协议说明与源代码，请参阅 [FFmpeg 官方网站](https://ffmpeg.org/) 与 [FFmpeg 法律合规声明](https://ffmpeg.org/legal.html)。
+
+## 项目结构说明
+
+更多关于模块设计、Composable UI 层次结构、核心领域服务（ProcessLauncher、MediaProcessor、NcnnRunner、
+FFmpegRunner）以及构建/测试命令的详细规范，可参阅 **[AGENTS.md](./AGENTS.md)** 快速了解项目全貌。

@@ -13,9 +13,9 @@ inference, and coroutine-based execution.
 
 |         | X64 | Arm64 |
 |---------|:---:|:-----:|
-| Windows |  ✅  |       |
-| Linux   |  ✅  |       |
-| MacOS   |     |   ✅   |
+| Windows | ✅  |       |
+| Linux   | ✅  |       |
+| MacOS   |     |  ✅   |
 
 ## About AI models
 
@@ -31,32 +31,13 @@ I used the following ONNX model to generate the NCNN model:
 The parameters are `inputshape=[1,6,1024,1024],[1,1,1,1]`, and 16-bit quantization is performed
 using `ncnnoptimize`.
 
-## How to run
-
-* [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform
-  applications.
-  It contains several subfolders:
-    - [commonMain](./shared/src/commonMain/kotlin) is for code that’s common for all targets.
-    - Other folders are for Kotlin code that will be compiled for only the platform indicated in the
-      folder name.
-      For example, if you want to edit the Desktop (JVM) specific part,
-      the [jvmMain](./shared/src/jvmMain/kotlin)
-      folder is the appropriate location.
-
 ### Running the apps
 
 Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these
 commands and options:
 
-- Desktop app:
-    - Hot reload: `./gradlew :desktopApp:hotRun --auto`
-    - Standard run: `./gradlew :desktopApp:run`
-
-### Running tests
-
-Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
-
-- Desktop tests: `./gradlew :shared:jvmTest`
+- Hot reload: `./gradlew :desktopApp:hotRun --auto`
+- Standard run: `./gradlew :desktopApp:run`
 
 Learn more
 about [Kotlin Multiplatform](https://www.jetbrains.com.cn/en-us/help/kotlin-multiplatform-dev/get-started.html)…
@@ -69,3 +50,8 @@ Accordingly, this project is licensed under the **[GNU General Public License v3
 
 - FFmpeg is a trademark and open-source project of the FFmpeg developers/team, and its copyright belongs to its original authors.
 - For more licensing information, legal notices, and source code of FFmpeg, please visit the [FFmpeg Official Website](https://ffmpeg.org/) and [FFmpeg Legal Information](https://ffmpeg.org/legal.html).
+
+## Agents & Developer Guidelines
+
+For more details on codebase architecture, Composable UI structure, domain services (ProcessLauncher,
+MediaProcessor, NcnnRunner, FFmpegRunner), and build/test commands, please refer to **[AGENTS.md](./AGENTS.md)** for a comprehensive project overview.
