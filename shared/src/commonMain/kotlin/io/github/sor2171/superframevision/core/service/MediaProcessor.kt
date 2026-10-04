@@ -147,7 +147,7 @@ class MediaProcessor private constructor(
         }
     }
 
-    fun detectDimensions(): Pair<Int, Int>? {
+    fun detectDimensions(path: Path = sourcePath): Pair<Int, Int>? {
         try {
             val result = FFmpegRunner.ffprobe(
                 "-v error",
@@ -157,7 +157,7 @@ class MediaProcessor private constructor(
                 "stream=width,height",
                 "-of",
                 "default=noprint_wrappers=1",
-                quotePath(sourcePath)
+                quotePath(path)
             )
             if (result.isNullOrBlank()) return null
             val lines = result.lines().filter { it.isNotBlank() }
@@ -311,6 +311,24 @@ class MediaProcessor private constructor(
         val inputs =
             if (originFrameDir.isFile()) listOf(originFrameDir)
             else FileUtils.list(originFrameDir)
+                .filter { it.name.endsWith(".jpg", ignoreCase = true) }
+                .sortedBy { it.name.substringBeforeLast(".").toIntOrNull() ?: 0 }
+
+        // 若输入帧已达目标超分分辨率（如历史旧任务留下的已超分缓存），直接复用避免重复超分
+        val videoDim = detectDimensions()
+        if (videoDim != null && inputs.isNotEmpty()) {
+            val firstImgDim = detectDimensions(inputs.first())
+            if (firstImgDim != null && firstImgDim.first >= videoDim.first * 2) {
+                println("检测到待处理帧已达到超分辨率尺寸 (${firstImgDim.first}x${firstImgDim.second})，跳过二次超分直接同步至 $upscaledFrameDir")
+                inputs.forEach { path ->
+                    val savePath = upscaledFrameDir / path.name
+                    if (!savePath.isFile() || (FileSystem.SYSTEM.metadataOrNull(savePath)?.size ?: 0L) == 0L) {
+                        FileUtils.copy(path, savePath)
+                    }
+                }
+                return
+            }
+        }
 
         ncnnTaskList.clear()
         inputs.forEach { path ->
@@ -319,17 +337,8 @@ class MediaProcessor private constructor(
                     upscaledFrameDir / "${path.name.substringBeforeLast(".")}_SR.jpg"
                 else upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
 
-            val num = path.name.substringBeforeLast(".").toIntOrNull()
-            val oddPathInInferred = if (num != null) {
-                inferredFrameDir / "${String.format("%06d", 2 * num - 1)}.jpg"
-            } else null
-
-            val isAlreadyDone =
-                (savePath.isFile() && (FileSystem.SYSTEM.metadataOrNull(savePath)?.size
-                    ?: 0L) > 0L) ||
-                        (oddPathInInferred != null && oddPathInInferred.isFile() && (FileSystem.SYSTEM.metadataOrNull(
-                            oddPathInInferred
-                        )?.size ?: 0L) > 0L)
+            val isAlreadyDone = savePath.isFile() &&
+                (FileSystem.SYSTEM.metadataOrNull(savePath)?.size ?: 0L) > 0L
 
             if (!isAlreadyDone) {
                 ncnnTaskList.add(NcnnTask.SuperResolution(path, savePath))
@@ -348,14 +357,18 @@ class MediaProcessor private constructor(
         val workerCount = minOf(thread, ncnnTaskList.size)
 
         try {
-            NcnnRunner.createSession(
-                size,
-                model,
-                times = 2,
-                deviceIndex,
-            ).use { runner ->
+            val runners = Array(workerCount) {
+                NcnnRunner.createSession(
+                    size,
+                    model,
+                    times = 2,
+                    deviceIndex,
+                )
+            }
+            try {
                 coroutineScope {
-                    repeat(workerCount) {
+                    repeat(workerCount) { workerId ->
+                        val runner = runners[workerId]
                         launch(Dispatchers.Default) {
                             while (isActive) {
                                 ensureActive()
@@ -370,6 +383,8 @@ class MediaProcessor private constructor(
                         }
                     }
                 }
+            } finally {
+                runners.forEach { it.close() }
             }
         } finally {
             ncnnTaskList.clear()
@@ -447,26 +462,32 @@ class MediaProcessor private constructor(
         val workerCount = minOf(thread, ncnnTaskList.size)
 
         try {
-            NcnnRunner.createSession(
-                size,
-                model,
-                times = 2,
-                deviceIndex,
-            ).use { runner ->
+            val runners = Array(workerCount) {
+                NcnnRunner.createSession(
+                    size,
+                    model,
+                    times = 2,
+                    deviceIndex,
+                )
+            }
+            try {
                 coroutineScope {
-                    repeat(workerCount) {
+                    repeat(workerCount) { workerId ->
+                        val runner = runners[workerId]
                         launch(Dispatchers.Default) {
                             while (isActive) {
                                 ensureActive()
                                 val index = taskIndex.fetchAndAdd(1)
                                 if (index >= ncnnTaskList.size) break
                                 val task = ncnnTaskList[index] as NcnnTask.FrameInterpolation
+                                val tStart = kotlin.time.TimeSource.Monotonic.markNow()
                                 runner.inferFrame(
                                     task.img0Path,
                                     task.img1Path,
                                     task.savePath,
                                     task.timestep
                                 )
+                                val tEnd = tStart.elapsedNow()
                                 val completed = _ncnnTaskCompleted.fetchAndAdd(1) + 1
                                 onTaskProgress?.invoke(ncnnTaskTotal, completed, startTime)
                                 yield()
@@ -474,6 +495,8 @@ class MediaProcessor private constructor(
                         }
                     }
                 }
+            } finally {
+                runners.forEach { it.close() }
             }
         } finally {
             ncnnTaskList.clear()

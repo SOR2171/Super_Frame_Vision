@@ -197,23 +197,25 @@ class ProcessLauncher(
                                         ?: error("Failed to detect input frame rate")
                                     check(mediaProcessor.extractFrames())
                                     { "Failed to extract frames" }
-                                    mediaProcessor.processSuperResolution(
-                                        Models.REAL_A3_2,
-                                        settings.vulkanDevice,
-                                        settings.upscaleThread
-                                    )
-                                    check(mediaProcessor.renumberToOdd(MediaProcessor::upscaledFrameDir))
+                                    check(mediaProcessor.renumberToOdd(MediaProcessor::originFrameDir))
                                     { "Failed to renumber frames" }
                                     mediaProcessor.inferLeftFrames(
                                         Models.RIFE4_26,
                                         settings.vulkanDevice,
                                         settings.inferThread
                                     )
+                                    mediaProcessor.processSuperResolution(
+                                        Models.REAL_A3_2,
+                                        settings.vulkanDevice,
+                                        settings.upscaleThread,
+                                        originFrameDir = mediaProcessor.inferredFrameDir,
+                                        upscaledFrameDir = mediaProcessor.upscaledFrameDir
+                                    )
                                     check(
                                         mediaProcessor.encodeToVideo(
                                             originalFrameRate * 2,
                                             options = encodingOptions
-                                        ) { this.inferredFrameDir })
+                                        ) { this.upscaledFrameDir })
                                     { "Failed to encode video" }
                                 }
                             }

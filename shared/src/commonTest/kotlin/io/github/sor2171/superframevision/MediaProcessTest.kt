@@ -38,14 +38,14 @@ class MediaProcessTest {
         val originalFrameRate = mediaProcessor.detectInputFrameRate()!!
         check(mediaProcessor.extractFrames()) { "extractFrames" }
         check(mediaProcessor.renumberToOdd(MediaProcessor::originFrameDir)) { "renumberToOdd" }
-        mediaProcessor.inferLeftFrames(Models.RIFE4_26, 8)
+        mediaProcessor.inferLeftFrames(model = Models.RIFE4_26, deviceIndex = 1, thread = 2)
         mediaProcessor.encodeToMp4(originalFrameRate * 2) { this.inferredFrameDir }
     }
 
     @Test
     fun superResolutionForVideo(): Unit = runBlocking {
         check(mediaProcessor.extractFrames()) { "extractFrames" }
-        mediaProcessor.processSuperResolution(Models.REAL_A3_2, 4)
+        mediaProcessor.processSuperResolution(model = Models.REAL_A3_2, deviceIndex = 1, thread = 2)
         mediaProcessor.encodeToMp4 { this.upscaledFrameDir }
     }
 }
