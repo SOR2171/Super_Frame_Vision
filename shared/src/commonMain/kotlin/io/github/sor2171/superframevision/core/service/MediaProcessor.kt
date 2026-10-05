@@ -18,17 +18,19 @@ import okio.FileSystem
 import okio.Path
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.reflect.KProperty1
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 class MediaProcessor private constructor(
-    private val sourcePath: Path,
-    private val outputPath: Path,
-    private val tmpDir: Path,
+    val sourcePath: Path,
+    val outputPath: Path,
+    val tmpDir: Path,
     val format: VideoFormat = VideoFormat.MP4,
     var onTaskProgress: ((total: Int, completed: Int, startTime: TimeMark?) -> Unit)? = null
 ) : AutoCloseable {
     var isSuccessful: Boolean = false
+    var inputFrameRate: Double? = null
     private val processOutputPath: Path = tmpDir / "processed.${format.extension}"
     val originFrameDir: Path = tmpDir / Const.ORIGIN_FRAME_DIR
     val upscaledFrameDir: Path = tmpDir / Const.UPSCALED_FRAME_DIR
@@ -111,6 +113,7 @@ class MediaProcessor private constructor(
     }
 
     fun detectInputFrameRate(): Double? {
+        if (inputFrameRate != null) return inputFrameRate
         try {
             val result = FFmpegRunner.ffprobe(
                 "-v error",
@@ -126,13 +129,17 @@ class MediaProcessor private constructor(
             if (result.isNullOrBlank())
                 throw Exception("ffprobe returned empty result")
 
-            val frameRateStr = result.substringAfter("=").trim()
+            val line = result.lines().firstOrNull { it.contains("r_frame_rate=") }
+                ?: result.lines().firstOrNull { it.contains("=") }
+                ?: result
+            val frameRateStr = line.substringAfter("=").trim()
             val parts = frameRateStr.split('/')
             val fps = if (parts.size == 2) {
                 parts[0].toDouble() / parts[1].toDouble()
             } else {
                 frameRateStr.toDouble()
             }
+            inputFrameRate = fps
             return fps
         } catch (e: Exception) {
             println("cannot get frame rate: ${e.message}")
@@ -140,7 +147,7 @@ class MediaProcessor private constructor(
         }
     }
 
-    fun detectDimensions(): Pair<Int, Int>? {
+    fun detectDimensions(path: Path = sourcePath): Pair<Int, Int>? {
         try {
             val result = FFmpegRunner.ffprobe(
                 "-v error",
@@ -150,7 +157,7 @@ class MediaProcessor private constructor(
                 "stream=width,height",
                 "-of",
                 "default=noprint_wrappers=1",
-                quotePath(sourcePath)
+                quotePath(path)
             )
             if (result.isNullOrBlank()) return null
             val lines = result.lines().filter { it.isNotBlank() }
@@ -172,12 +179,40 @@ class MediaProcessor private constructor(
         }
     }
 
-    fun extractFrames(): Boolean {
-        FileUtils.createDirectories(originFrameDir)
-        val extractedMarker = originFrameDir / ".extracted"
-        val existingFrames = FileUtils.list(originFrameDir).filter { it.name.endsWith(".jpg") }
+    fun detectSceneTransitions(threshold: Double): List<Int> {
+        try {
+            val fps = detectInputFrameRate() ?: return emptyList()
+            val result = FFmpegRunner.execute(
+                "-i",
+                quotePath(sourcePath),
+                "-filter:v",
+                "\"select='gt(scene,$threshold)',showinfo\"",
+                "-f",
+                "null",
+                "-"
+            )
+            if (result.isNullOrBlank()) return emptyList()
+
+            val ptsRegex = Regex("""pts_time:\s*([0-9.]+)""")
+            return ptsRegex.findAll(result).mapNotNull { match ->
+                val ptsTime = match.groupValues[1].toDoubleOrNull() ?: return@mapNotNull null
+                (ptsTime * fps).toInt() - 2
+            }.filter { it >= 0 }.toList()
+        } catch (e: Exception) {
+            println("cannot detect scene transitions: ${e.message}")
+            return emptyList()
+        }
+    }
+
+    fun extractFrames(
+        outputDirP: KProperty1<MediaProcessor, Path> = MediaProcessor::originFrameDir,
+    ): Boolean {
+        val outputDir = solveWorkFolder(outputDirP)
+        FileUtils.createDirectories(outputDir)
+        val extractedMarker = tmpDir / ".extracted"
+        val existingFrames = FileUtils.list(outputDir).filter { it.name.endsWith(".jpg") }
         if (extractedMarker.isFile() && existingFrames.isNotEmpty()) {
-            println("帧序列已存在，跳过提取: $originFrameDir (${existingFrames.size} 帧)")
+            println("帧序列已存在，跳过提取: $outputDir (${existingFrames.size} 帧)")
             return true
         }
 
@@ -186,8 +221,8 @@ class MediaProcessor private constructor(
             return true
         }
 
-        println("提取帧序列至 $originFrameDir")
-        clearDirectory(originFrameDir)
+        println("提取帧序列至 $outputDir")
+        clearDirectory(outputDir)
 
         val success = !FFmpegRunner.execute(
             "-hwaccel auto",
@@ -196,7 +231,7 @@ class MediaProcessor private constructor(
             "-f image2",
             "-fps_mode passthrough",
             "-q:v 2",
-            quotePath(originFrameDir / "%06d.jpg"),
+            quotePath(outputDir / "%06d.jpg"),
             "-y"
         ).isNullOrBlank()
 
@@ -206,8 +241,10 @@ class MediaProcessor private constructor(
         return success
     }
 
-    fun renumberToOdd(sourcePath: MediaProcessor.() -> Path): Boolean {
-        val sourceDir = sourcePath()
+    fun renumberToOdd(
+        sourceDirP: KProperty1<MediaProcessor, Path>,
+    ): Boolean {
+        val sourceDir = solveWorkFolder(sourceDirP)
         FileUtils.createDirectories(inferredFrameDir)
         val allPictures = FileUtils.list(sourceDir).filter { it.name.endsWith(".jpg") }
         if (allPictures.isEmpty()) {
@@ -243,16 +280,16 @@ class MediaProcessor private constructor(
         val files = FileUtils.list(inferredFrameDir).filter { it.name.endsWith(".jpg") }
         if (files.isEmpty()) return false
 
-        val nums = files.mapNotNull {
+        val numbers = files.mapNotNull {
             it.name.removeSuffix(".jpg").toIntOrNull()
         }.filter { it % 2 != 0 }.sorted()
 
-        if (nums.isEmpty()) return false
+        if (numbers.isEmpty()) return false
 
-        for (i in nums.indices) {
+        for (i in numbers.indices) {
             val expected = 2 * (i + 1) - 1
-            if (nums[i] != expected) {
-                println("Frame sequence broken: expected $expected, got ${nums[i]}")
+            if (numbers[i] != expected) {
+                println("Frame sequence broken: expected $expected, got ${numbers[i]}")
                 return false
             }
         }
@@ -274,6 +311,24 @@ class MediaProcessor private constructor(
         val inputs =
             if (originFrameDir.isFile()) listOf(originFrameDir)
             else FileUtils.list(originFrameDir)
+                .filter { it.name.endsWith(".jpg", ignoreCase = true) }
+                .sortedBy { it.name.substringBeforeLast(".").toIntOrNull() ?: 0 }
+
+        // 若输入帧已达目标超分分辨率（如历史旧任务留下的已超分缓存），直接复用避免重复超分
+        val videoDim = detectDimensions()
+        if (videoDim != null && inputs.isNotEmpty()) {
+            val firstImgDim = detectDimensions(inputs.first())
+            if (firstImgDim != null && firstImgDim.first >= videoDim.first * 2) {
+                println("检测到待处理帧已达到超分辨率尺寸 (${firstImgDim.first}x${firstImgDim.second})，跳过二次超分直接同步至 $upscaledFrameDir")
+                inputs.forEach { path ->
+                    val savePath = upscaledFrameDir / path.name
+                    if (!savePath.isFile() || (FileSystem.SYSTEM.metadataOrNull(savePath)?.size ?: 0L) == 0L) {
+                        FileUtils.copy(path, savePath)
+                    }
+                }
+                return
+            }
+        }
 
         ncnnTaskList.clear()
         inputs.forEach { path ->
@@ -282,17 +337,8 @@ class MediaProcessor private constructor(
                     upscaledFrameDir / "${path.name.substringBeforeLast(".")}_SR.jpg"
                 else upscaledFrameDir / "${path.name.substringBeforeLast(".")}.jpg"
 
-            val num = path.name.substringBeforeLast(".").toIntOrNull()
-            val oddPathInInferred = if (num != null) {
-                inferredFrameDir / "${String.format("%06d", 2 * num - 1)}.jpg"
-            } else null
-
-            val isAlreadyDone =
-                (savePath.isFile() && (FileSystem.SYSTEM.metadataOrNull(savePath)?.size
-                    ?: 0L) > 0L) ||
-                        (oddPathInInferred != null && oddPathInInferred.isFile() && (FileSystem.SYSTEM.metadataOrNull(
-                            oddPathInInferred
-                        )?.size ?: 0L) > 0L)
+            val isAlreadyDone = savePath.isFile() &&
+                (FileSystem.SYSTEM.metadataOrNull(savePath)?.size ?: 0L) > 0L
 
             if (!isAlreadyDone) {
                 ncnnTaskList.add(NcnnTask.SuperResolution(path, savePath))
@@ -311,14 +357,18 @@ class MediaProcessor private constructor(
         val workerCount = minOf(thread, ncnnTaskList.size)
 
         try {
-            NcnnRunner.createSession(
-                size,
-                model,
-                times = 2,
-                deviceIndex,
-            ).use { runner ->
+            val runners = Array(workerCount) {
+                NcnnRunner.createSession(
+                    size,
+                    model,
+                    times = 2,
+                    deviceIndex,
+                )
+            }
+            try {
                 coroutineScope {
-                    repeat(workerCount) {
+                    repeat(workerCount) { workerId ->
+                        val runner = runners[workerId]
                         launch(Dispatchers.Default) {
                             while (isActive) {
                                 ensureActive()
@@ -333,6 +383,8 @@ class MediaProcessor private constructor(
                         }
                     }
                 }
+            } finally {
+                runners.forEach { it.close() }
             }
         } finally {
             ncnnTaskList.clear()
@@ -342,7 +394,8 @@ class MediaProcessor private constructor(
     suspend fun inferLeftFrames(
         model: Models,
         deviceIndex: Int,
-        thread: Int = 4
+        thread: Int = 4,
+        threshold: Double? = 0.3
     ) {
         println("准备执行插帧，线程数：$thread")
         require(thread > 0) { "thread must be greater than 0" }
@@ -355,8 +408,28 @@ class MediaProcessor private constructor(
             it.name.substringBeforeLast(".jpg").toInt()
         }
 
-        val inputFrameList = List(oddJpgList.size) { i ->
-            oddJpgList[i] to (oddJpgList.getOrNull(i + 1) ?: oddJpgList.last())
+        val inputFrameList = if (threshold != null && oddJpgList.isNotEmpty()) {
+            val cutIndices = detectSceneTransitions(threshold)
+                .filter { it in 1 until oddJpgList.size }
+                .distinct()
+                .sorted()
+
+            println("检测到转场断开点索引：$cutIndices (共 ${cutIndices.size} 处)")
+
+            val cutPoints = listOf(0) + cutIndices + listOf(oddJpgList.size)
+            val segments = cutPoints.zipWithNext { start, end ->
+                oddJpgList.subList(start, end)
+            }
+
+            segments.flatMap { segment ->
+                List(segment.size) { i ->
+                    segment[i] to (segment.getOrNull(i + 1) ?: segment.last())
+                }
+            }
+        } else {
+            List(oddJpgList.size) { i ->
+                oddJpgList[i] to (oddJpgList.getOrNull(i + 1) ?: oddJpgList.last())
+            }
         }
 
         FileUtils.createDirectories(inferredFrameDir)
@@ -389,26 +462,32 @@ class MediaProcessor private constructor(
         val workerCount = minOf(thread, ncnnTaskList.size)
 
         try {
-            NcnnRunner.createSession(
-                size,
-                model,
-                times = 2,
-                deviceIndex,
-            ).use { runner ->
+            val runners = Array(workerCount) {
+                NcnnRunner.createSession(
+                    size,
+                    model,
+                    times = 2,
+                    deviceIndex,
+                )
+            }
+            try {
                 coroutineScope {
-                    repeat(workerCount) {
+                    repeat(workerCount) { workerId ->
+                        val runner = runners[workerId]
                         launch(Dispatchers.Default) {
                             while (isActive) {
                                 ensureActive()
                                 val index = taskIndex.fetchAndAdd(1)
                                 if (index >= ncnnTaskList.size) break
                                 val task = ncnnTaskList[index] as NcnnTask.FrameInterpolation
+                                val tStart = kotlin.time.TimeSource.Monotonic.markNow()
                                 runner.inferFrame(
                                     task.img0Path,
                                     task.img1Path,
                                     task.savePath,
                                     task.timestep
                                 )
+                                val tEnd = tStart.elapsedNow()
                                 val completed = _ncnnTaskCompleted.fetchAndAdd(1) + 1
                                 onTaskProgress?.invoke(ncnnTaskTotal, completed, startTime)
                                 yield()
@@ -416,6 +495,8 @@ class MediaProcessor private constructor(
                         }
                     }
                 }
+            } finally {
+                runners.forEach { it.close() }
             }
         } finally {
             ncnnTaskList.clear()
@@ -466,5 +547,9 @@ class MediaProcessor private constructor(
 
     private fun clearDirectory(dir: Path) {
         FileUtils.list(dir).forEach { FileUtils.delete(it) }
+    }
+
+    fun solveWorkFolder(property: KProperty1<MediaProcessor, Path>): Path {
+        return property.get(this)
     }
 }

@@ -6,7 +6,10 @@ import io.github.sor2171.superframevision.core.entity.ProcessType
 import io.github.sor2171.superframevision.core.entity.QueueFile
 import io.github.sor2171.superframevision.core.utils.FileUtils
 import io.github.sor2171.superframevision.core.utils.isFile
-import io.github.sor2171.superframevision.core.utils.isSameFile
+import io.github.sor2171.superframevision.core.utils.getFileHeadTailHash
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import io.github.sor2171.superframevision.core.utils.SettingsRepository
 import okio.Path.Companion.toPath
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +29,18 @@ class ProcessLauncher(
     private val onProcessingStateChange: (Boolean) -> Unit,
     private val onTaskProgressChange: (total: Int, completed: Int, startTime: TimeMark?, remainingTime: Duration?) -> Unit = { _, _, _, _ -> }
 ) {
+    @Serializable
+    private data class TaskInfo(
+        val sourcePath: String,
+        val processType: String,
+        val sourceHash: String,
+    )
+
+    private val taskJson = Json {
+        ignoreUnknownKeys = true
+        prettyPrint = true
+    }
+
     var processJob: Job? = null
         private set
 
@@ -55,6 +70,7 @@ class ProcessLauncher(
     }
 
     fun cancel() {
+        println("已发送终止信号")
         processJob?.cancel()
         updateTaskProgress(0, 0, null)
     }
@@ -74,28 +90,43 @@ class ProcessLauncher(
                     try {
                         val settings = getSettings()
                         val tmpDir = settings.workingDir.getPath()
+                        val chosenProcessType = getProcessType()
+                        val currentHash = getFileHeadTailHash(queueFile.path)
+                        check(currentHash != null) { "Failed to get file hash for ${queueFile.path}" }
+                        val taskInfoFile = tmpDir / "task_info.json"
 
-                        val existingVideoInTmp = FileUtils.list(tmpDir).firstOrNull {
-                            it.name.startsWith("input_video.") && it.isFile()
+                        val existingVideoInfo = FileUtils.list(tmpDir).firstOrNull {
+                            it.name.startsWith("task_info.json") && it.isFile()
                         }
 
-                        if (existingVideoInTmp != null) {
-                            if (isSameFile(queueFile.path, existingVideoInTmp)) {
+                        var isSameTask = false
+                        if (existingVideoInfo != null) {
+                            val content = FileUtils.read(existingVideoInfo)?.decodeToString()
+                            val cached = content?.let {
+                                runCatching { taskJson.decodeFromString<TaskInfo>(it) }.getOrNull()
+                            }
+                            if (cached != null &&
+                                cached.sourcePath == queueFile.path.toString() &&
+                                cached.processType == chosenProcessType.name &&
+                                cached.sourceHash == currentHash
+                            ) {
                                 println("检测到缓存中的文件与当前任务一致，继续使用原数据")
-                                val newExt = queueFile.path.name.substringAfter(".", "")
-                                val expectedName =
-                                    if (newExt.isEmpty()) "input_video" else "input_video.$newExt"
-                                if (existingVideoInTmp.name != expectedName) {
-                                    val targetPath = tmpDir / expectedName
-                                    println("同步缓存文件名：${existingVideoInTmp.name} -> $expectedName")
-                                    FileUtils.move(existingVideoInTmp, targetPath)
-                                }
+                                isSameTask = true
                             } else {
                                 println("检测到缓存中的文件与当前任务不一致，清空 tmp 目录")
                                 FileUtils.clearTmp(tmpDir)
                             }
                         } else {
                             FileUtils.clearTmp(tmpDir)
+                        }
+
+                        if (!isSameTask) {
+                            val taskInfo = TaskInfo(
+                                sourcePath = queueFile.path.toString(),
+                                processType = chosenProcessType.name,
+                                sourceHash = currentHash
+                            )
+                            FileUtils.write(taskJson.encodeToString(taskInfo), taskInfoFile)
                         }
 
                         val encodingOptions =
@@ -111,7 +142,6 @@ class ProcessLauncher(
                             customOutputDir,
                             onTaskProgress = ::updateTaskProgress
                         ).use { mediaProcessor ->
-                            val chosenProcessType = getProcessType()
                             println("开始处理：$chosenProcessType ${queueFile.path}")
 
                             when (chosenProcessType) {
@@ -146,7 +176,7 @@ class ProcessLauncher(
                                         ?: error("Failed to detect input frame rate")
                                     check(mediaProcessor.extractFrames())
                                     { "Failed to extract frames" }
-                                    check(mediaProcessor.renumberToOdd { this.originFrameDir })
+                                    check(mediaProcessor.renumberToOdd(MediaProcessor::originFrameDir))
                                     { "Failed to renumber frames" }
                                     mediaProcessor.inferLeftFrames(
                                         Models.RIFE4_26,
@@ -167,23 +197,25 @@ class ProcessLauncher(
                                         ?: error("Failed to detect input frame rate")
                                     check(mediaProcessor.extractFrames())
                                     { "Failed to extract frames" }
-                                    mediaProcessor.processSuperResolution(
-                                        Models.REAL_A3_2,
-                                        settings.vulkanDevice,
-                                        settings.upscaleThread
-                                    )
-                                    check(mediaProcessor.renumberToOdd { this.upscaledFrameDir })
+                                    check(mediaProcessor.renumberToOdd(MediaProcessor::originFrameDir))
                                     { "Failed to renumber frames" }
                                     mediaProcessor.inferLeftFrames(
                                         Models.RIFE4_26,
                                         settings.vulkanDevice,
                                         settings.inferThread
                                     )
+                                    mediaProcessor.processSuperResolution(
+                                        Models.REAL_A3_2,
+                                        settings.vulkanDevice,
+                                        settings.upscaleThread,
+                                        originFrameDir = mediaProcessor.inferredFrameDir,
+                                        upscaledFrameDir = mediaProcessor.upscaledFrameDir
+                                    )
                                     check(
                                         mediaProcessor.encodeToVideo(
                                             originalFrameRate * 2,
                                             options = encodingOptions
-                                        ) { this.inferredFrameDir })
+                                        ) { this.upscaledFrameDir })
                                     { "Failed to encode video" }
                                 }
                             }

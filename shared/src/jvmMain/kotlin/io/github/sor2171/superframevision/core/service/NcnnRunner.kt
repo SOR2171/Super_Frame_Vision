@@ -13,6 +13,7 @@ import okio.Path
 import org.slf4j.LoggerFactory
 import superframevision.shared.generated.resources.Res
 import java.awt.image.BufferedImage
+import java.awt.image.DataBufferByte
 import java.io.ByteArrayInputStream
 import javax.imageio.IIOImage
 import javax.imageio.ImageIO
@@ -37,6 +38,8 @@ actual class NcnnRunner(
     actual companion object {
         private val logger = LoggerFactory.getLogger(NcnnRunner::class.java)
         private val cLib = NcnnLibrary.INSTANCE
+        private val NORM_TO_FLOAT = floatArrayOf(1.0f / 255.0f, 1.0f / 255.0f, 1.0f / 255.0f)
+        private val SCALE_TO_BYTE = floatArrayOf(255.0f, 255.0f, 255.0f)
 
         actual fun listVulkanDevices(): MutableList<String> {
             return VulkanDeviceDetector.detect().map { it.name }.toMutableList()
@@ -176,7 +179,7 @@ actual class NcnnRunner(
                 )
 
                 // 保留你当前接口的返回值处理。
-                // 此接口的成功判据需要按实际使用的 c_api.h 确认，
+                // 此接口的成功判据需要按实际使用的 c_api.cpp 确认，
                 // 不要直接套用文件加载接口的 result == 0。
                 logger.info("load model result: {}", modelResult)
 
@@ -239,6 +242,29 @@ actual class NcnnRunner(
         val outputChannels: Int
     )
 
+    private class ImagePixelData(
+        val bytes: ByteArray,
+        val pixelType: Int,
+        val stride: Int
+    )
+
+    private fun getImagePixelData(image: BufferedImage): ImagePixelData {
+        val bgrImage = if (image.type == BufferedImage.TYPE_3BYTE_BGR && image.raster.dataBuffer is DataBufferByte) {
+            image
+        } else {
+            val converted = BufferedImage(image.width, image.height, BufferedImage.TYPE_3BYTE_BGR)
+            val g = converted.createGraphics()
+            try {
+                g.drawImage(image, 0, 0, null)
+            } finally {
+                g.dispose()
+            }
+            converted
+        }
+        val data = (bgrImage.raster.dataBuffer as DataBufferByte).data
+        return ImagePixelData(data, NcnnLibrary.NCNN_MAT_PIXEL_BGR2RGB, bgrImage.width * 3)
+    }
+
     /**
      * RIFE 使用固定输入尺寸。
      *
@@ -285,6 +311,8 @@ actual class NcnnRunner(
 
             val imageWidth = image0.width
             val imageHeight = image0.height
+            val pixelData0 = getImagePixelData(image0)
+            val pixelData1 = getImagePixelData(image1)
 
             val constTileWidth = minOf(
                 floorTo32(rifeTileMaxWidth),
@@ -426,8 +454,10 @@ actual class NcnnRunner(
                     )
 
                     val tileOutput = runRifeTile(
-                        image0 = image0,
-                        image1 = image1,
+                        pixelData0 = pixelData0,
+                        pixelData1 = pixelData1,
+                        imageWidth = imageWidth,
+                        imageHeight = imageHeight,
                         tileX = tileX,
                         tileY = tileY,
                         cropWidth = actualCropWidth,
@@ -530,8 +560,10 @@ actual class NcnnRunner(
 }
 
     private fun runRifeTile(
-        image0: BufferedImage,
-        image1: BufferedImage,
+        pixelData0: ImagePixelData,
+        pixelData1: ImagePixelData,
+        imageWidth: Int,
+        imageHeight: Int,
         tileX: Int,
         tileY: Int,
         cropWidth: Int,
@@ -548,8 +580,10 @@ actual class NcnnRunner(
 
         try {
             imageInputMat = createRife6ChannelInputMat(
-                image0 = image0,
-                image1 = image1,
+                pixelData0 = pixelData0,
+                pixelData1 = pixelData1,
+                imageWidth = imageWidth,
+                imageHeight = imageHeight,
                 tileX = tileX,
                 tileY = tileY,
                 cropWidth = cropWidth,
@@ -694,8 +728,10 @@ actual class NcnnRunner(
     }
 
     private fun createRife6ChannelInputMat(
-        image0: BufferedImage,
-        image1: BufferedImage,
+        pixelData0: ImagePixelData,
+        pixelData1: ImagePixelData,
+        imageWidth: Int,
+        imageHeight: Int,
         tileX: Int,
         tileY: Int,
         cropWidth: Int,
@@ -707,73 +743,110 @@ actual class NcnnRunner(
         require(paddedWidth >= cropWidth)
         require(paddedHeight >= cropHeight)
 
-        val mat = cLib.ncnn_mat_create_3d_elem(
-            paddedWidth,
-            paddedHeight,
-            6,
-            4L,
-            1,
-            Pointer.NULL
-        )
-
-        check(mat != Pointer.NULL) {
-            "Failed to create RIFE 6-channel input Mat"
-        }
+        var mat0: Pointer? = null
+        var mat1: Pointer? = null
+        var paddedMat0: Pointer? = null
+        var paddedMat1: Pointer? = null
 
         try {
-            val channel0 = cLib.ncnn_mat_get_channel_data(mat, 0)
-            val channel1 = cLib.ncnn_mat_get_channel_data(mat, 1)
-            val channel2 = cLib.ncnn_mat_get_channel_data(mat, 2)
-            val channel3 = cLib.ncnn_mat_get_channel_data(mat, 3)
-            val channel4 = cLib.ncnn_mat_get_channel_data(mat, 4)
-            val channel5 = cLib.ncnn_mat_get_channel_data(mat, 5)
+            mat0 = cLib.ncnn_mat_from_pixels_roi(
+                pixelData0.bytes,
+                pixelData0.pixelType,
+                imageWidth,
+                imageHeight,
+                pixelData0.stride,
+                tileX,
+                tileY,
+                cropWidth,
+                cropHeight,
+                Pointer.NULL
+            )
+            check(mat0 != Pointer.NULL) { "Failed to create ROI Mat 0" }
+            cLib.ncnn_mat_substract_mean_normalize(mat0, null, NORM_TO_FLOAT)
 
-            check(
-                channel0 != Pointer.NULL &&
-                        channel1 != Pointer.NULL &&
-                        channel2 != Pointer.NULL &&
-                        channel3 != Pointer.NULL &&
-                        channel4 != Pointer.NULL &&
-                        channel5 != Pointer.NULL
-            ) {
-                "Failed to access RIFE input channels"
+            mat1 = cLib.ncnn_mat_from_pixels_roi(
+                pixelData1.bytes,
+                pixelData1.pixelType,
+                imageWidth,
+                imageHeight,
+                pixelData1.stride,
+                tileX,
+                tileY,
+                cropWidth,
+                cropHeight,
+                Pointer.NULL
+            )
+            check(mat1 != Pointer.NULL) { "Failed to create ROI Mat 1" }
+            cLib.ncnn_mat_substract_mean_normalize(mat1, null, NORM_TO_FLOAT)
+
+            val padBottom = paddedHeight - cropHeight
+            val padRight = paddedWidth - cropWidth
+
+            if (padBottom > 0 || padRight > 0) {
+                paddedMat0 = cLib.ncnn_mat_create()
+                cLib.ncnn_copy_make_border(
+                    mat0,
+                    paddedMat0,
+                    0,
+                    padBottom,
+                    0,
+                    padRight,
+                    NcnnLibrary.NCNN_BORDER_CONSTANT,
+                    0.0f,
+                    optionPtr
+                )
+                cLib.ncnn_mat_destroy(mat0)
+                mat0 = null
+
+                paddedMat1 = cLib.ncnn_mat_create()
+                cLib.ncnn_copy_make_border(
+                    mat1,
+                    paddedMat1,
+                    0,
+                    padBottom,
+                    0,
+                    padRight,
+                    NcnnLibrary.NCNN_BORDER_CONSTANT,
+                    0.0f,
+                    optionPtr
+                )
+                cLib.ncnn_mat_destroy(mat1)
+                mat1 = null
+            } else {
+                paddedMat0 = mat0
+                mat0 = null
+                paddedMat1 = mat1
+                mat1 = null
             }
 
-            val cropPixels0 = image0.getRGB(tileX, tileY, cropWidth, cropHeight, null, 0, cropWidth)
-            val cropPixels1 = image1.getRGB(tileX, tileY, cropWidth, cropHeight, null, 0, cropWidth)
+            val mat6 = cLib.ncnn_mat_create_3d_elem(
+                paddedWidth,
+                paddedHeight,
+                6,
+                4L,
+                1,
+                Pointer.NULL
+            )
+            check(mat6 != Pointer.NULL) { "Failed to create RIFE 6-channel input Mat" }
 
-            /*
-             * 这里必须使用 ncnn Mat 的实际 cstep。
-             *
-             * channel_data 已经考虑了 cstep，所以每个通道内部只需要按
-             * y * paddedWidth + x 写入。
-             */
-            for (y in 0 until paddedHeight) {
-                val sourceY = minOf(y, cropHeight - 1)
-
-                for (x in 0 until paddedWidth) {
-                    val sourceX = minOf(x, cropWidth - 1)
-
-                    val sourceIndex = sourceY * cropWidth + sourceX
-                    val destinationIndex = y * paddedWidth + x
-                    val byteOffset = destinationIndex.toLong() * 4L
-
-                    val rgb0 = cropPixels0[sourceIndex]
-                    val rgb1 = cropPixels1[sourceIndex]
-
-                    channel0.setFloat(byteOffset, ((rgb0 ushr 16) and 0xFF) / 255.0f)
-                    channel1.setFloat(byteOffset, ((rgb0 ushr 8) and 0xFF) / 255.0f)
-                    channel2.setFloat(byteOffset, (rgb0 and 0xFF) / 255.0f)
-                    channel3.setFloat(byteOffset, ((rgb1 ushr 16) and 0xFF) / 255.0f)
-                    channel4.setFloat(byteOffset, ((rgb1 ushr 8) and 0xFF) / 255.0f)
-                    channel5.setFloat(byteOffset, (rgb1 and 0xFF) / 255.0f)
-                }
+            val channelBytes = cLib.ncnn_mat_get_cstep(paddedMat0) * 4L
+            for (c in 0 until 3) {
+                val src = cLib.ncnn_mat_get_channel_data(paddedMat0, c)
+                val dst = cLib.ncnn_mat_get_channel_data(mat6, c)
+                dst.getByteBuffer(0, channelBytes).put(src.getByteBuffer(0, channelBytes))
+            }
+            for (c in 0 until 3) {
+                val src = cLib.ncnn_mat_get_channel_data(paddedMat1, c)
+                val dst = cLib.ncnn_mat_get_channel_data(mat6, c + 3)
+                dst.getByteBuffer(0, channelBytes).put(src.getByteBuffer(0, channelBytes))
             }
 
-            return mat
-        } catch (throwable: Throwable) {
-            cLib.ncnn_mat_destroy(mat)
-            throw throwable
+            return mat6
+        } finally {
+            if (mat0 != null && mat0 != Pointer.NULL) cLib.ncnn_mat_destroy(mat0)
+            if (mat1 != null && mat1 != Pointer.NULL) cLib.ncnn_mat_destroy(mat1)
+            if (paddedMat0 != null && paddedMat0 != Pointer.NULL) cLib.ncnn_mat_destroy(paddedMat0)
+            if (paddedMat1 != null && paddedMat1 != Pointer.NULL) cLib.ncnn_mat_destroy(paddedMat1)
         }
     }
 
@@ -815,28 +888,53 @@ actual class NcnnRunner(
             "RIFE source region exceeds Tile output height"
         }
 
-        val reader = MatPlanarReader(
-            mat = tileOutput.mat,
-            width = tileOutput.outputWidth,
-            height = tileOutput.outputHeight
-        )
+        val elemSize = cLib.ncnn_mat_get_elemsize(tileOutput.mat)
+        if (elemSize == 4L) {
+            cLib.ncnn_mat_substract_mean_normalize(tileOutput.mat, null, SCALE_TO_BYTE)
+            val tileW = tileOutput.outputWidth
+            val tileH = tileOutput.outputHeight
+            val tileBytes = ByteArray(tileW * tileH * 3)
+            cLib.ncnn_mat_to_pixels(tileOutput.mat, tileBytes, NcnnLibrary.NCNN_MAT_PIXEL_RGB, tileW * 3)
 
-        for (y in 0 until copyHeight) {
-            val sourceRow = sourceY + y
-            val destinationRow = destinationY + y
+            for (y in 0 until copyHeight) {
+                val sourceRow = sourceY + y
+                val destinationRow = destinationY + y
+                var srcIdx = (sourceRow * tileW + sourceX) * 3
+                var dstIdx = destinationRow * destinationWidth + destinationX
 
-            for (x in 0 until copyWidth) {
-                val sourceColumn = sourceX + x
-                val destinationColumn = destinationX + x
+                for (x in 0 until copyWidth) {
+                    val red = tileBytes[srcIdx].toInt() and 0xFF
+                    val green = tileBytes[srcIdx + 1].toInt() and 0xFF
+                    val blue = tileBytes[srcIdx + 2].toInt() and 0xFF
+                    destinationPixels[dstIdx] = (red shl 16) or (green shl 8) or blue
+                    srcIdx += 3
+                    dstIdx++
+                }
+            }
+        } else {
+            val reader = MatPlanarReader(
+                mat = tileOutput.mat,
+                width = tileOutput.outputWidth,
+                height = tileOutput.outputHeight
+            )
 
-                val sourceIndex = sourceRow * tileOutput.outputWidth + sourceColumn
-                val destinationIndex = destinationRow * destinationWidth + destinationColumn
+            for (y in 0 until copyHeight) {
+                val sourceRow = sourceY + y
+                val destinationRow = destinationY + y
 
-                val red = normalizedFloatToByte(reader.read(0, sourceIndex))
-                val green = normalizedFloatToByte(reader.read(1, sourceIndex))
-                val blue = normalizedFloatToByte(reader.read(2, sourceIndex))
+                for (x in 0 until copyWidth) {
+                    val sourceColumn = sourceX + x
+                    val destinationColumn = destinationX + x
 
-                destinationPixels[destinationIndex] = (red shl 16) or (green shl 8) or blue
+                    val sourceIndex = sourceRow * tileOutput.outputWidth + sourceColumn
+                    val destinationIndex = destinationRow * destinationWidth + destinationColumn
+
+                    val red = normalizedFloatToByte(reader.read(0, sourceIndex))
+                    val green = normalizedFloatToByte(reader.read(1, sourceIndex))
+                    val blue = normalizedFloatToByte(reader.read(2, sourceIndex))
+
+                    destinationPixels[destinationIndex] = (red shl 16) or (green shl 8) or blue
+                }
             }
         }
     }
@@ -851,7 +949,8 @@ actual class NcnnRunner(
             val inputImage = loadImage(inputPath)
             try {
                 val imageWidth = inputImage.width
-            val imageHeight = inputImage.height
+                val imageHeight = inputImage.height
+                val pixelData = getImagePixelData(inputImage)
 
             require(imageWidth > 0 && imageHeight > 0) {
                 "Invalid input image size: ${imageWidth}x${imageHeight}"
@@ -953,7 +1052,9 @@ actual class NcnnRunner(
                     )
 
                     val tileOutput = runUpscaleTile(
-                        image = inputImage,
+                        pixelData = pixelData,
+                        imageWidth = imageWidth,
+                        imageHeight = imageHeight,
                         tileX = tileX0,
                         tileY = tileY0,
                         tileWidth = tileWidth,
@@ -1065,7 +1166,9 @@ actual class NcnnRunner(
 }
 
     private fun runUpscaleTile(
-        image: BufferedImage,
+        pixelData: ImagePixelData,
+        imageWidth: Int,
+        imageHeight: Int,
         tileX: Int,
         tileY: Int,
         tileWidth: Int,
@@ -1076,16 +1179,22 @@ actual class NcnnRunner(
         var extractor: Pointer? = null
 
         try {
-            inputMat = createRgbFloatMatFromRegion(
-                image = image,
-                x = tileX,
-                y = tileY,
-                width = tileWidth,
-                height = tileHeight
+            inputMat = cLib.ncnn_mat_from_pixels_roi(
+                pixelData.bytes,
+                pixelData.pixelType,
+                imageWidth,
+                imageHeight,
+                pixelData.stride,
+                tileX,
+                tileY,
+                tileWidth,
+                tileHeight,
+                Pointer.NULL
             )
+            check(inputMat != Pointer.NULL) { "Failed to create upscale input Mat from ROI" }
+            cLib.ncnn_mat_substract_mean_normalize(inputMat, null, NORM_TO_FLOAT)
 
             extractor = cLib.ncnn_extractor_create(modelNetPtr)
-
             check(extractor != Pointer.NULL) { "Failed to create upscale extractor" }
 
             cLib.ncnn_extractor_set_option(extractor, optionPtr)
@@ -1094,7 +1203,6 @@ actual class NcnnRunner(
             { "Failed to set upscale input blob: data" }
 
             val outputReference = PointerByReference()
-
             val result = cLib.ncnn_extractor_extract(extractor, "output", outputReference)
 
             check(result == 0 && outputReference.value != null && outputReference.value != Pointer.NULL)
@@ -1114,72 +1222,15 @@ actual class NcnnRunner(
             outputMat = null
             return tileOutput
         } finally {
-            if (outputMat != null &&
-                outputMat != Pointer.NULL
-            ) {
+            if (outputMat != null && outputMat != Pointer.NULL) {
                 cLib.ncnn_mat_destroy(outputMat)
             }
-
-            if (extractor != null &&
-                extractor != Pointer.NULL
-            ) {
+            if (extractor != null && extractor != Pointer.NULL) {
                 cLib.ncnn_extractor_destroy(extractor)
             }
-
-            if (inputMat != null &&
-                inputMat != Pointer.NULL
-            ) {
+            if (inputMat != null && inputMat != Pointer.NULL) {
                 cLib.ncnn_mat_destroy(inputMat)
             }
-        }
-    }
-
-    private fun createRgbFloatMatFromRegion(
-        image: BufferedImage,
-        x: Int,
-        y: Int,
-        width: Int,
-        height: Int
-    ): Pointer {
-        require(x >= 0 && y >= 0)
-        require(width > 0 && height > 0)
-        require(x + width <= image.width)
-        require(y + height <= image.height)
-
-        val mat = cLib.ncnn_mat_create_3d_elem(width, height, 3, 4L, 1, Pointer.NULL)
-
-        check(mat != Pointer.NULL) {
-            "Failed to create RGB float Mat"
-        }
-
-        try {
-            val redChannel = cLib.ncnn_mat_get_channel_data(mat, 0)
-            val greenChannel = cLib.ncnn_mat_get_channel_data(mat, 1)
-            val blueChannel = cLib.ncnn_mat_get_channel_data(mat, 2)
-
-            check(
-                redChannel != Pointer.NULL &&
-                        greenChannel != Pointer.NULL &&
-                        blueChannel != Pointer.NULL
-            ) {
-                "Failed to access RGB Mat channels"
-            }
-
-            val pixels = image.getRGB(x, y, width, height, null, 0, width)
-
-            for (index in pixels.indices) {
-                val rgb = pixels[index]
-                val offset = index.toLong() * 4L
-
-                redChannel.setFloat(offset, ((rgb ushr 16) and 0xFF) / 255.0f)
-                greenChannel.setFloat(offset, ((rgb ushr 8) and 0xFF) / 255.0f)
-                blueChannel.setFloat(offset, (rgb and 0xFF) / 255.0f)
-            }
-
-            return mat
-        } catch (throwable: Throwable) {
-            cLib.ncnn_mat_destroy(mat)
-            throw throwable
         }
     }
 
@@ -1270,28 +1321,53 @@ actual class NcnnRunner(
                     "output=${destinationWidth}x$destinationHeight"
         }
 
-        val reader = MatPlanarReader(
-            mat = tileOutput.mat,
-            width = tileOutput.outputWidth,
-            height = tileOutput.outputHeight
-        )
+        val elemSize = cLib.ncnn_mat_get_elemsize(tileOutput.mat)
+        if (elemSize == 4L) {
+            cLib.ncnn_mat_substract_mean_normalize(tileOutput.mat, null, SCALE_TO_BYTE)
+            val tileW = tileOutput.outputWidth
+            val tileH = tileOutput.outputHeight
+            val tileBytes = ByteArray(tileW * tileH * 3)
+            cLib.ncnn_mat_to_pixels(tileOutput.mat, tileBytes, NcnnLibrary.NCNN_MAT_PIXEL_RGB, tileW * 3)
 
-        for (y in 0 until copyHeight) {
-            val sourceRow = sourceY + y
-            val destinationRow = destinationY + y
+            for (y in 0 until copyHeight) {
+                val sourceRow = sourceY + y
+                val destinationRow = destinationY + y
+                var srcIdx = (sourceRow * tileW + sourceX) * 3
+                var dstIdx = destinationRow * destinationWidth + destinationX
 
-            for (x in 0 until copyWidth) {
-                val sourceColumn = sourceX + x
-                val destinationColumn = destinationX + x
+                for (x in 0 until copyWidth) {
+                    val red = tileBytes[srcIdx].toInt() and 0xFF
+                    val green = tileBytes[srcIdx + 1].toInt() and 0xFF
+                    val blue = tileBytes[srcIdx + 2].toInt() and 0xFF
+                    destinationPixels[dstIdx] = (red shl 16) or (green shl 8) or blue
+                    srcIdx += 3
+                    dstIdx++
+                }
+            }
+        } else {
+            val reader = MatPlanarReader(
+                mat = tileOutput.mat,
+                width = tileOutput.outputWidth,
+                height = tileOutput.outputHeight
+            )
 
-                val sourceIndex = sourceRow * tileOutput.outputWidth + sourceColumn
-                val destinationIndex = destinationRow * destinationWidth + destinationColumn
+            for (y in 0 until copyHeight) {
+                val sourceRow = sourceY + y
+                val destinationRow = destinationY + y
 
-                val red = normalizedFloatToByte(reader.read(0, sourceIndex))
-                val green = normalizedFloatToByte(reader.read(1, sourceIndex))
-                val blue = normalizedFloatToByte(reader.read(2, sourceIndex))
+                for (x in 0 until copyWidth) {
+                    val sourceColumn = sourceX + x
+                    val destinationColumn = destinationX + x
 
-                destinationPixels[destinationIndex] = (red shl 16) or (green shl 8) or blue
+                    val sourceIndex = sourceRow * tileOutput.outputWidth + sourceColumn
+                    val destinationIndex = destinationRow * destinationWidth + destinationColumn
+
+                    val red = normalizedFloatToByte(reader.read(0, sourceIndex))
+                    val green = normalizedFloatToByte(reader.read(1, sourceIndex))
+                    val blue = normalizedFloatToByte(reader.read(2, sourceIndex))
+
+                    destinationPixels[destinationIndex] = (red shl 16) or (green shl 8) or blue
+                }
             }
         }
     }
