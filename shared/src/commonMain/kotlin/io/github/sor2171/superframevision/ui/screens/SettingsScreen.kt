@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,7 +80,6 @@ import superframevision.shared.generated.resources.settings_tooltip_video_output
 import superframevision.shared.generated.resources.settings_tooltip_video_quality
 import superframevision.shared.generated.resources.settings_tooltip_working_dir
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     confirmChange: (OverallSettings) -> Unit,

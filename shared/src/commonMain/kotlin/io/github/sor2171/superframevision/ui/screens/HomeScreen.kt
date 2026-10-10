@@ -133,8 +133,7 @@ fun HomeScreen(
 
     Column(
         modifier = Modifier
-            .padding(8.dp)
-            .padding(bottom = 16.dp)
+            .padding(vertical = 12.dp, horizontal = 4.dp)
             .fillMaxSize(),
         verticalArrangement = Arrangement.Bottom,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -150,7 +149,7 @@ fun HomeScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp)
+                        .padding(8.dp)
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize()
@@ -251,7 +250,7 @@ fun HomeScreen(
 
         Card(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(8.dp)
                 .height(64.dp)
                 .fillMaxWidth()
         ) {
@@ -281,7 +280,7 @@ fun HomeScreen(
         OutlinedCard(
             modifier = Modifier
                 .weight(1f)
-                .padding(16.dp)
+                .padding(8.dp)
         ) {
             ScrollColumn(
                 scrollState = scrollState,
@@ -318,7 +317,7 @@ fun HomeScreen(
 
         Card(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(8.dp)
                 .height(72.dp)
                 .fillMaxWidth()
         ) {
