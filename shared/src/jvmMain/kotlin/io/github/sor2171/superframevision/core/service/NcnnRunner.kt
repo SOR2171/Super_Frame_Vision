@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory
 import superframevision.shared.generated.resources.Res
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
-import java.io.ByteArrayInputStream
 import javax.imageio.IIOImage
 import javax.imageio.ImageIO
 import javax.imageio.ImageWriteParam

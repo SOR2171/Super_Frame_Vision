@@ -480,7 +480,7 @@ class MediaProcessor private constructor(
                                 val index = taskIndex.fetchAndAdd(1)
                                 if (index >= ncnnTaskList.size) break
                                 val task = ncnnTaskList[index] as NcnnTask.FrameInterpolation
-                                val tStart = kotlin.time.TimeSource.Monotonic.markNow()
+                                val tStart = TimeSource.Monotonic.markNow()
                                 runner.inferFrame(
                                     task.img0Path,
                                     task.img1Path,

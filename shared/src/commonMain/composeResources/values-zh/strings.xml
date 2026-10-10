@@ -52,12 +52,12 @@
     <string name="settings_tooltip_threads">线程越多，设备要求越高，速度越快，质量不变。</string>
 
     <string name="settings_title_ai_device">AI 计算设备</string>
-    <string name="settings_tooltip_ai_device">有些时候AUTO会出问题，有些时候会出现两个核显</string>
+    <string name="settings_tooltip_ai_device">有些时候 CPU 会出问题，有些时候会出现两个核显</string>
 
     <string name="settings_title_video_format">导出文件格式</string>
     <string name="settings_tooltip_video_format">最终生成视频文件的容器格式。</string>
     <string name="settings_title_video_codec">视频编码方式</string>
-    <string name="settings_tooltip_video_codec">选择视频编码器。硬件加速速度更快且占用更低，CPU软编画质与压缩率更好。</string>
+    <string name="settings_tooltip_video_codec">选择视频编码器。硬件加速速度更快且占用更低，CPU 软编画质与压缩率更好。</string>
     <string name="settings_title_video_quality">视频质量档位</string>
     <string name="settings_tooltip_video_quality">设置输出画质档位，会自动适配当前编码器的最优控制参数。</string>
 
@@ -78,9 +78,9 @@
     <string name="info_sn">信息</string>
 
     <string name="info_github">在 GitHub 上\n给我一个 star</string>
-    <string name="info_bilibili">关注我的B站</string>
-    <string name="info_qq_group_slv">加入QQ群\n虽然它不是我的</string>
-    <string name="info_qq_group">加入我的QQ群</string>
+    <string name="info_bilibili">关注我的 B 站</string>
+    <string name="info_qq_group_slv">加入 QQ 群\n虽然它不是我的</string>
+    <string name="info_qq_group">加入我的 QQ 群</string>
     <string name="thank_supports">感谢以下朋友们的开发支持：</string>
     <string name="info_donor">感谢您的支持！</string>
 </resources>
