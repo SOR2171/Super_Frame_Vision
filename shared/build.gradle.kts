@@ -42,3 +42,41 @@ kotlin {
 compose.resources {
     publicResClass = true
 }
+
+val targetPlatform = run {
+    val prop = (project.findProperty("targetPlatform") as? String)
+        ?: System.getenv("TARGET_PLATFORM")
+    when (prop?.lowercase()) {
+        "windows", "win", "win32", "win64" -> "windows"
+        "linux" -> "linux"
+        "macos", "mac", "darwin", "osx" -> "macos"
+        "all" -> "all"
+        null, "" -> {
+            val osName = System.getProperty("os.name").lowercase()
+            when {
+                osName.contains("win") -> "windows"
+                osName.contains("linux") -> "linux"
+                osName.contains("mac") || osName.contains("darwin") -> "macos"
+                else -> "all"
+            }
+        }
+        else -> prop.lowercase()
+    }
+}
+
+tasks.withType<ProcessResources>().configureEach {
+    when (targetPlatform) {
+        "windows" -> {
+            exclude("linux-x86-64/**")
+            exclude("darwin-aarch64/**")
+        }
+        "linux" -> {
+            exclude("win32-x86-64/**")
+            exclude("darwin-aarch64/**")
+        }
+        "macos" -> {
+            exclude("win32-x86-64/**")
+            exclude("linux-x86-64/**")
+        }
+    }
+}
