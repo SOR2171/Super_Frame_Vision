@@ -113,12 +113,12 @@ fun ProcessScreen(
                     style = MaterialTheme.typography.bodyLarge
                 )
 
-                val currentFilePath = queueFileList.getOrNull(0)?.path
+                val currentFileName = queueFileList.getOrNull(0)?.path?.name
                     ?: stringResource(Res.string.process_queue_empty)
                 val statusText = if (isProcessing) {
-                    stringResource(Res.string.process_status_processing, currentFilePath)
+                    stringResource(Res.string.process_status_processing, currentFileName)
                 } else {
-                    stringResource(Res.string.process_status_pending, currentFilePath)
+                    stringResource(Res.string.process_status_pending, currentFileName)
                 }
 
                 Text(
