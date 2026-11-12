@@ -186,6 +186,7 @@ fun App() {
 
                         Screens.Process -> ProcessScreen(
                             cancelJob = processor::cancel,
+                            processStart = processor::start,
                             saverPickerLauncher = saverPickerLauncher,
                             isProcessing = isProcessing,
                             platform = platform,

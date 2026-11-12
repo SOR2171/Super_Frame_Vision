@@ -15,11 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -40,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import io.github.sor2171.superframevision.core.entity.Platform
 import io.github.sor2171.superframevision.core.entity.QueueFile
 import io.github.sor2171.superframevision.core.utils.FileUtils
+import io.github.sor2171.superframevision.ui.component.StartStopButton
 import io.github.vinceglb.filekit.dialogs.compose.SaverResultLauncher
 import kotlinx.coroutines.launch
 import okio.Path
@@ -47,7 +44,6 @@ import org.jetbrains.compose.resources.stringResource
 import superframevision.shared.generated.resources.Res
 import superframevision.shared.generated.resources.process_btn_clear_console
 import superframevision.shared.generated.resources.process_btn_export_log
-import superframevision.shared.generated.resources.process_cd_stop
 import superframevision.shared.generated.resources.process_internal_output_hint
 import superframevision.shared.generated.resources.process_progress_idle
 import superframevision.shared.generated.resources.process_progress_label
@@ -64,6 +60,7 @@ import kotlin.time.Duration
 @Composable
 fun ProcessScreen(
     cancelJob: () -> Unit,
+    processStart: () -> Unit,
     saverPickerLauncher: @Composable ((Path) -> Unit) -> SaverResultLauncher,
     platform: Platform,
     isProcessing: Boolean,
@@ -116,12 +113,12 @@ fun ProcessScreen(
                     style = MaterialTheme.typography.bodyLarge
                 )
 
-                val currentFilePath = queueFileList.getOrNull(0)?.path
+                val currentFileName = queueFileList.getOrNull(0)?.path?.name
                     ?: stringResource(Res.string.process_queue_empty)
                 val statusText = if (isProcessing) {
-                    stringResource(Res.string.process_status_processing, currentFilePath)
+                    stringResource(Res.string.process_status_processing, currentFileName)
                 } else {
-                    stringResource(Res.string.process_status_pending, currentFilePath)
+                    stringResource(Res.string.process_status_pending, currentFileName)
                 }
 
                 Text(
@@ -248,15 +245,11 @@ fun ProcessScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Button(
-                    onClick = cancelJob,
-                    enabled = isProcessing
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Stop,
-                        contentDescription = stringResource(Res.string.process_cd_stop)
-                    )
-                }
+                StartStopButton(
+                    isProcessing = isProcessing,
+                    onStart = processStart,
+                    onStop = cancelJob
+                )
             }
         }
     }
