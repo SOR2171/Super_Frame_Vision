@@ -293,13 +293,16 @@ fun HomeScreen(
                     ) {
                         Row(
                             modifier = Modifier
-                                .fillMaxSize()
+                                .fillMaxWidth()
                                 .padding(4.dp)
                                 .padding(start = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = queueFile.path.toString())
-                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = queueFile.path.toString(),
+                                modifier = Modifier.weight(1f)
+                            )
                             Button(
                                 modifier = Modifier.padding(4.dp),
                                 onClick = { removeQueueFile(queueFile) }
